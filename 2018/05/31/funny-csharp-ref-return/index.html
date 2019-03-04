@@ -1,0 +1,179 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="zUaS4Gbh7E">
+  
+  <title>【我好像遇到了假的 C#】2018年05月31日 -- ref return | The Coding Life | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="明天就是六一儿童节了。在这个大喜的日子里。每日 CLR 段子开张了。其中【我好像遇到了假的 C#】是其中的一个栏目。你可以在其中找到有趣的程序片段。当期的答案会在下期公布哦。当然没有什么奖品，大家自己在学习中获得满足感吧。
+每一期的【我好像遇到了假的 C#】的代码大部分是以测试的形式给出的。很可惜，给出的测试一定是失败的。大家可以凭着自己丰富的工作经验判断一下如何才能改正这个测试呢？今天的测试是关于 ref 的（要实际运行测试的话，记得使用 C# 7.x 哦）：">
+  
+
+  
+  
+  <meta name="keywords" content="csharp,ref return">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="【我好像遇到了假的 C#】2018年05月31日 -- ref return">
+
+  <meta property="og:site_name" content="The Coding Life">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The Coding Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The Coding Life</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>【我好像遇到了假的 C#】2018年05月31日 -- ref return</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/05/31/funny-csharp-ref-return/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-05-30T16:04:38.000Z">
+          2018-05-31
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>明天就是六一儿童节了。在这个大喜的日子里。每日 CLR 段子开张了。其中【我好像遇到了假的 C#】是其中的一个栏目。你可以在其中找到有趣的程序片段。当期的答案会在下期公布哦。当然没有什么奖品，大家自己在学习中获得满足感吧。</p>
+<p>每一期的【我好像遇到了假的 C#】的代码大部分是以测试的形式给出的。很可惜，给出的测试一定是失败的。大家可以凭着自己丰富的工作经验判断一下如何才能改正这个测试呢？今天的测试是关于 <code>ref</code> 的（要实际运行测试的话，记得使用 C# 7.x 哦）：</p>
+<a id="more"></a>
+<p>给定如下方法：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">ref</span> <span class="keyword">int</span> <span class="title">GetElementAt</span>(<span class="params"><span class="keyword">int</span>[] array, <span class="keyword">int</span> index</span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">ref</span> array[index];;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>怎么才能修正下面的测试呢？</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">[<span class="meta">Fact</span>]</span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">please_fix_this_sad_test</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">int</span>[] numbers = &#123;<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>&#125;;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">ref</span> <span class="keyword">int</span> thirdElementRef = <span class="function"><span class="keyword">ref</span> <span class="title">GetElementAt</span>(<span class="params">numbers, <span class="number">2</span></span>)</span>;</span><br><span class="line">  thirdElementRef = <span class="number">100</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 注意哦，你只能修改以下两行代码。</span></span><br><span class="line">  <span class="keyword">const</span> <span class="keyword">int</span> firstExpectation = <span class="keyword">default</span>;</span><br><span class="line">  <span class="keyword">int</span>[] secondExpectation = &#123; &#125;;</span><br><span class="line"></span><br><span class="line">  Assert.Equal(firstExpectation, numbers[<span class="number">2</span>]);</span><br><span class="line">  Assert.Equal(secondExpectation, numbers);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>祝大家儿童节快乐！如果您觉得本文对您有帮助，也欢迎分享给其他的人。我们一起进步。欢迎关注我的微信公众号：</p>
+<p><img src="/images/blog/funny_csharp_barcode.jpeg" style="text-align:center" alt="wechat-app-barcode"></p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/csharp/">csharp</a><a href="/tags/ref-return/">ref return</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

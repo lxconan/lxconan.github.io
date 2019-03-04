@@ -1,0 +1,194 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="zUaS4Gbh7E">
+  
+  <title>谁占了我的端口 for Windows | The Coding Life | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="今天在本地调试 Blog 的时候意外的出现了一些错误：127.0.0.1 4000 端口已经被其他的进程占用了。如何找到占用端口的进程呢？">
+  
+
+  
+  
+  <meta name="keywords" content="tips,powershell">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="谁占了我的端口 for Windows">
+
+  <meta property="og:site_name" content="The Coding Life">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The Coding Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The Coding Life</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>谁占了我的端口 for Windows</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2016/01/07/who-is-using-my-port/" rel="bookmark">
+        <time class="entry-date published" datetime="2016-01-06T18:01:01.000Z">
+          2016-01-07
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>今天在本地调试 Blog 的时候意外的出现了一些错误：127.0.0.1 4000 端口已经被其他的进程占用了。如何找到占用端口的进程呢？</p>
+<a id="more"></a>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">Configuration file: /_config.yml</span><br><span class="line">            Source: .</span><br><span class="line">       Destination: ./_site</span><br><span class="line">      Generating...</span><br><span class="line">                    done.</span><br><span class="line">  Please add the following to your Gemfile to avoid polling for changes:</span><br><span class="line">    gem 'wdm', '&gt;= 0.1.0' if Gem.win_platform?</span><br><span class="line"> Auto-regeneration: enabled for '.'</span><br><span class="line">Configuration file: /_config.yml</span><br><span class="line">jekyll 2.4.0 | Error:  Permission denied - bind(2) for 127.0.0.1:4000</span><br></pre></td></tr></table></figure>
+<h2 id="先手动一步一步来"><a href="#先手动一步一步来" class="headerlink" title="先手动一步一步来"></a>先手动一步一步来</h2><p>我们可以使用 <code>netstat</code> 命令查看各种端口的被进程的占用情况，例如，开一个命令行或者 powershell 窗口输入 <code>netstat -ano</code>。就得到了如下的报告。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       888</span><br><span class="line">TCP    0.0.0.0:445            0.0.0.0:0              LISTENING       4</span><br><span class="line">TCP    0.0.0.0:1536           0.0.0.0:0              LISTENING       564</span><br><span class="line">TCP    0.0.0.0:1537           0.0.0.0:0              LISTENING       848</span><br><span class="line">TCP    0.0.0.0:1538           0.0.0.0:0              LISTENING       1416</span><br><span class="line">TCP    0.0.0.0:1539           0.0.0.0:0              LISTENING       1892</span><br><span class="line">TCP    0.0.0.0:1540           0.0.0.0:0              LISTENING       732</span><br><span class="line">TCP    0.0.0.0:1569           0.0.0.0:0              LISTENING       724</span><br><span class="line">TCP    0.0.0.0:5357           0.0.0.0:0              LISTENING       4</span><br><span class="line">TCP    127.0.0.1:1575         127.0.0.1:48303        ESTABLISHED     2104</span><br><span class="line">TCP    127.0.0.1:4000         0.0.0.0:0              LISTENING       11476   &lt;= Oops</span><br><span class="line">TCP    127.0.0.1:4012         0.0.0.0:0              LISTENING       10888</span><br><span class="line">TCP    127.0.0.1:4013         0.0.0.0:0              LISTENING       10888</span><br></pre></td></tr></table></figure>
+<p>说明一下参数：</p>
+<ul>
+<li>-a：显示所有链接和侦听端口</li>
+<li>-n：以数字形式显示地址和端口号而不会去尝试进行外部地址解析，能够显著的提高执行速度</li>
+<li>-o：显示拥有与每一个链接关联的 PID。其实他还有一个 fancy 的参数 <strong>-b</strong> 可以直接拿到与指定链接关联的可执行程序的名称。但是这个参数需要管理员权限！</li>
+</ul>
+<p>嫌疑人 Get，是一个 PID 为 <span style="color:#cf0000">11476</span> 的进程占用了 4000 端口，除掉他之前先看看到底是谁？这个可以通过 <code>tasklist /svc /FI &quot;PID eq 11476&quot;</code> 搞定。</p>
+<p>再说明一下参数：</p>
+<ul>
+<li>/svc：如果这个进程是一个 Windows 服务的话同时显示这个服务的名称；</li>
+<li>/FI：使用筛选器对结果进行筛选。</li>
+</ul>
+<p>以下是运行结果：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Image Name                PID      Service</span><br><span class="line">========================= ======== ============================================</span><br><span class="line">FoxitProtect.exe             11476 FxService</span><br></pre></td></tr></table></figure>
+<p>好的，我昨天刚刚安装了一个 FixitReader。停掉服务，一切搞定。</p>
+<h2 id="再来一个自动一点儿的"><a href="#再来一个自动一点儿的" class="headerlink" title="再来一个自动一点儿的"></a>再来一个自动一点儿的</h2><p>写个 Powershell 脚本吧：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">param([string] $EndPointPattern)</span><br><span class="line"></span><br><span class="line"><span class="meta">$</span>pids = netstat -aon | ?&#123; $_.contains("$EndPointPattern") &#125; | %&#123; $_.split(' ', [system.stringsplitoptions]::RemoveEmptyEntries)[4] &#125; | select -unique</span><br><span class="line"><span class="meta">$</span>pids | %&#123; ps -Id $_ &#125;</span><br></pre></td></tr></table></figure>
+<p>这里面没有考虑各种乱七八糟的情况，如果要用，请自行增补细节。好了，运行一下吧：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> .\Search-EndPointProcess.ps1 -EndPointPattern "127.0.0.1:48303"</span><br><span class="line"></span><br><span class="line">Handles  NPM(K)    PM(K)      WS(K) VM(M)   CPU(s)     Id  SI ProcessName</span><br><span class="line">-------  ------    -----      ----- -----   ------     --  -- -----------</span><br><span class="line">   1047      30     8516       5044   178            2104   0 svchost</span><br></pre></td></tr></table></figure>
+<p>不错嘛！:-D</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/tips/">tips</a><a href="/tags/powershell/">powershell</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

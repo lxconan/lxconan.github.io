@@ -1,0 +1,190 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="zUaS4Gbh7E">
+  
+  <title>【我好像遇到了假的 C#】2018年06月08日--variance | The Coding Life | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="Hello，大家好，现在 Infrastructure 已经搞定了。终于可以安心的更新了。我们先来回顾一下上一期的问题。然后我们会带来一个脑筋急转弯似的新问题：">
+  
+
+  
+  
+  <meta name="keywords" content="csharp,array,variance">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="【我好像遇到了假的 C#】2018年06月08日--variance">
+
+  <meta property="og:site_name" content="The Coding Life">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The Coding Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The Coding Life</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>【我好像遇到了假的 C#】2018年06月08日--variance</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/06/08/funny-csharp-array-variance/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-06-07T17:12:42.000Z">
+          2018-06-08
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>Hello，大家好，现在 Infrastructure 已经搞定了。终于可以安心的更新了。我们先来回顾一下上一期的问题。然后我们会带来一个脑筋急转弯似的新问题：</p>
+<a id="more"></a>
+<h2 id="上一期问题的解答"><a href="#上一期问题的解答" class="headerlink" title="上一期问题的解答"></a>上一期问题的解答</h2><p>上一期的问题强化了 <code>interface</code> 实现上的知识点。给定</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">interface</span> <span class="title">IFlyable</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="function"><span class="keyword">string</span> <span class="title">Fly</span>(<span class="params"></span>)</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title">Bird</span> : <span class="title">IFlyable</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">string</span> <span class="title">Fly</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function"></span>  &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">"Bird.Fly()"</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title">Parrot</span> : <span class="title">Bird</span>, <span class="title">IFlyable</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">string</span> IFlyable.Fly()</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="string">"Parrot.Fly() explicite"</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>那么以下的输出是什么呢？</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> parrot = <span class="keyword">new</span> Parrot();</span><br><span class="line"><span class="keyword">var</span> bird = (Bird)<span class="keyword">new</span> Parrot();</span><br><span class="line"></span><br><span class="line">Console.WriteLine(parrot.Fly()); </span><br><span class="line">Console.WriteLine(((IFlyable)bird).Fly());</span><br></pre></td></tr></table></figure>
+<p><code>parrot.Fly()</code> 是无法调用显式实现的，因此它调用的是 <code>Bird.Fly()</code>。因此第一行的输出为 <code>Bird.Fly()</code>。而第二行中，<code>bird</code> 的 most derived 类型为 <code>Parrot</code> 因此其接口转换的调用会调用 <code>Parrot</code> 的显式实现。因此输出为 <code>Parrot.Fly() explicite</code>。</p>
+<p>从这两期的例子我们可以看到。接口实现是有各种各样的问题的。尤其是我们不希望子类重新实现接口方法（某些情况下则是直接隐藏基类的接口方法）。那么如果我们希望在基类中隐式实现成员，则可以将成员标记为 <code>virtual</code>，而如果要显式实现成员，则可以使用如下的模式：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title">BaseClass</span> : <span class="title">IBehavior</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="keyword">void</span> IBehavior.Perform() =&gt; Perform();</span><br><span class="line">  <span class="function"><span class="keyword">protected</span> <span class="keyword">virtual</span> <span class="keyword">void</span> <span class="title">Perform</span>(<span class="params"></span>)</span> =&gt; ... <span class="comment">/* do actual work */</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这样子类可以直接重写虚方法：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title">Derived</span> : <span class="title">BaseClass</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="function"><span class="keyword">protected</span> <span class="keyword">override</span> <span class="keyword">void</span> <span class="title">Perform</span>(<span class="params"></span>)</span> =&gt; ... <span class="comment">/* overrided work */</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这样即便是 <code>Derived</code> 类型进行了显式接口调用也会由于 <code>virtual protected</code> 方法的存在而体现多态性。</p>
+<h2 id="本期的题目"><a href="#本期的题目" class="headerlink" title="本期的题目"></a>本期的题目</h2><p><img src="/images/blog/funny-csharp-array-variance.jpg" style="text-align:center" alt="variance"></p>
+<p>假设有如下的类型继承结构：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title">BaseClass</span> &#123; &#125;</span><br><span class="line"><span class="keyword">class</span> <span class="title">DerivedClassA</span> : <span class="title">BaseClass</span> &#123; &#125;</span><br><span class="line"><span class="keyword">class</span> <span class="title">DerivedClassB</span> : <span class="title">BaseClass</span> &#123; &#125;</span><br></pre></td></tr></table></figure>
+<p>假设给定一个基类型的数组：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 不管用什么方法，得到了一个基类型的数组，而且确定至少包含两个元素</span></span><br><span class="line">BaseClass[] baseClassArray = ...;</span><br></pre></td></tr></table></figure>
+<p>那么以下的测试一定能够成功吗？</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> derivedClassA = <span class="keyword">new</span> DerivedClassA();</span><br><span class="line"><span class="keyword">var</span> derivedClassB = <span class="keyword">new</span> DerivedClassB();</span><br><span class="line">baseClassArray[<span class="number">0</span>] = derivedClassA;</span><br><span class="line">baseClassArray[<span class="number">1</span>] = derivedClassB;</span><br><span class="line">Assert.Same(derivedClassA, baseClassArray[<span class="number">0</span>]);</span><br><span class="line">Assert.Same(derivedClassB, baseClassArray[<span class="number">1</span>]);</span><br></pre></td></tr></table></figure>
+<p>好了，这就是今天的内容了。如果您觉得本文对您有帮助，也欢迎分享给其他的人。我们一起进步。欢迎关注我的微信公众号：</p>
+<p><img src="/images/blog/funny_csharp_barcode.jpeg" style="text-align:center" alt="wechat-app-barcode"></p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/csharp/">csharp</a><a href="/tags/array/">array</a><a href="/tags/variance/">variance</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,191 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="zUaS4Gbh7E">
+  
+  <title>【我好像遇到了假的 C#】2018年06月01日--in parameter | The Coding Life | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="Hello 大家儿童节快乐。
+上期问题解答上一期的问题涉及到了 C# 7.0 的新特性：ref returns。我把核心的代码放在这里：
+12345678910static ref int GetElementAt(int[] array, int index)&amp;#123;  return ref array[index];;&amp;#125;...int[] numbers = &amp;#123;1, 2, 3, 4, 5, 6&amp;#125;;ref int thirdElementRef = ref GetElementAt(numbers, 2);thirdElementRef = 100;">
+  
+
+  
+  
+  <meta name="keywords" content="csharp,in parameter">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="【我好像遇到了假的 C#】2018年06月01日--in parameter">
+
+  <meta property="og:site_name" content="The Coding Life">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The Coding Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The Coding Life</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>【我好像遇到了假的 C#】2018年06月01日--in parameter</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/06/01/funny-csharp-in-param/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-05-31T16:09:08.000Z">
+          2018-06-01
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>Hello 大家儿童节快乐。</p>
+<h2 id="上期问题解答"><a href="#上期问题解答" class="headerlink" title="上期问题解答"></a>上期问题解答</h2><p>上一期的问题涉及到了 C# 7.0 的新特性：<code>ref returns</code>。我把核心的代码放在这里：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">ref</span> <span class="keyword">int</span> <span class="title">GetElementAt</span>(<span class="params"><span class="keyword">int</span>[] array, <span class="keyword">int</span> index</span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">ref</span> array[index];;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"><span class="keyword">int</span>[] numbers = &#123;<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">6</span>&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">ref</span> <span class="keyword">int</span> thirdElementRef = <span class="function"><span class="keyword">ref</span> <span class="title">GetElementAt</span>(<span class="params">numbers, <span class="number">2</span></span>)</span>;</span><br><span class="line">thirdElementRef = <span class="number">100</span>;</span><br></pre></td></tr></table></figure>
+<a id="more"></a>
+<p>大家如果自己运行了程序的话可以知道，答案是 <code>numbers</code> 在程序执行之后变成了 <code>{1, 2, 100, 4, 5, 6}</code>。<code>ref return</code> 只能返回 <code>local ref</code>，关于这个部分的详细信息，建议大家阅读这篇文章：</p>
+<p><a href="https://blogs.msdn.microsoft.com/mazhou/2017/12/12/c-7-series-part-7-ref-returns/" target="_blank" rel="noopener">https://blogs.msdn.microsoft.com/mazhou/2017/12/12/c-7-series-part-7-ref-returns/</a></p>
+<p>这个问题还有很多变种，例如，如果我们将程序调用从：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">ref</span> <span class="keyword">int</span> thirdElementRef = <span class="function"><span class="keyword">ref</span> <span class="title">GetElementAt</span>(<span class="params">numbers, <span class="number">2</span></span>)</span>;</span><br></pre></td></tr></table></figure>
+<p>变为</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span> thirdElementRef = GetElementAt(numbers, <span class="number">2</span>);</span><br></pre></td></tr></table></figure>
+<p>那么会有什么不一样呢？</p>
+<h2 id="本期问题"><a href="#本期问题" class="headerlink" title="本期问题"></a>本期问题</h2><p>好了，今天我们来看一个更好玩儿的问题。在 C# 7.2 中引入了 <code>in</code> 参数。<code>in</code> 参数可以看做一个只读的 <code>ref</code>。因此，以下的程序是语法错误：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">TryModifyReadonlyRef</span>(<span class="params"><span class="keyword">in</span> <span class="keyword">int</span> <span class="keyword">value</span></span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">value</span> = <span class="number">2</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>好了，今天的测试来了，大家想一想，如何才能修好这个测试呢？给定如下的函数：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">TryModifyReadonlyRef</span>(<span class="params"><span class="keyword">in</span> <span class="keyword">int</span> <span class="keyword">value</span></span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">unsafe</span></span><br><span class="line">  &#123;</span><br><span class="line">    <span class="keyword">fixed</span> (<span class="keyword">int</span>* ptr = &amp;<span class="keyword">value</span>)</span><br><span class="line">    &#123;</span><br><span class="line">      *ptr = <span class="number">2</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>请修改指定的位置让测试通过：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[Fact]</span><br><span class="line">public void do_you_think_if_the_in_parameter_be_changed()</span><br><span class="line">&#123;</span><br><span class="line">  int value = 5;</span><br><span class="line">  TryModifyReadonlyRef(in value);</span><br><span class="line"></span><br><span class="line">  // 只能修改这一行的值哦。</span><br><span class="line">  const int expect = default;</span><br><span class="line">  Assert.Equal(expect, value);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>再次祝大家儿童节快乐！希望天下的宝宝都能够健康成长。</p>
+<p>如果您觉得本文对您有帮助，也欢迎分享给其他的人。我们一起进步。欢迎关注我的微信公众号：</p>
+<p><img src="/images/blog/funny_csharp_barcode.jpeg" style="text-align:center" alt="wechat-app-barcode"></p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/csharp/">csharp</a><a href="/tags/in-parameter/">in parameter</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

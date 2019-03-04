@@ -1,0 +1,293 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="zUaS4Gbh7E">
+  
+  <title>.NET 的 Debug 和 Release build 对执行速度的影响 | The Coding Life | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="在真正开始讨论之前先定义一下 Scope。
+
+本文讨论的范围限于执行速度，内存占用什么的不在评估的范围之内。
+本文不讨论算法：编译器带来的优化基本上属于底层的优化，难以从质上提升执行速度。程序的快慢主要影响因素是采用的数据结构和算法这些高层次上的东西。我们接下来的讨论建立在这些高层次的东西已经被充分考虑的基础之上。">
+  
+
+  
+  
+  <meta name="keywords" content="performance,jit">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content=".NET 的 Debug 和 Release build 对执行速度的影响">
+
+  <meta property="og:site_name" content="The Coding Life">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The Coding Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The Coding Life</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>.NET 的 Debug 和 Release build 对执行速度的影响</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2014/10/13/difference-between-debug-and-release-build-on-speed/" rel="bookmark">
+        <time class="entry-date published" datetime="2014-10-13T08:33:20.000Z">
+          2014-10-13
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>在真正开始讨论之前先定义一下 Scope。</p>
+<ul>
+<li>本文讨论的范围限于执行速度，内存占用什么的不在评估的范围之内。</li>
+<li>本文不讨论算法：编译器带来的优化基本上属于底层的优化，难以从质上提升执行速度。程序的快慢主要影响因素是采用的数据结构和算法这些高层次上的东西。我们接下来的讨论建立在这些高层次的东西已经被充分考虑的基础之上。</li>
+</ul>
+<a id="more"></a>
+<h2 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h2><ul>
+<li>.NET 的 Debug 和 Release build 对执行速度的影响<ul>
+<li>如果你没有时间</li>
+<li>Debug 和 Release build 的主要差异</li>
+<li>观察 JIT 优化的代码</li>
+<li>JIT 优化对不同场景的影响<ul>
+<li>迭代和内存操作</li>
+<li>非频繁的库调用</li>
+<li>频繁的库调用</li>
+<li>频繁的闭包调用</li>
+</ul>
+</li>
+<li>结论</li>
+</ul>
+</li>
+</ul>
+<h2 id="如果你没有时间"><a href="#如果你没有时间" class="headerlink" title="如果你没有时间"></a>如果你没有时间</h2><p>那么答案是：</p>
+<ul>
+<li>对执行速度有影响。影响主要是由 JIT 而非 IL 编译器引入的。</li>
+<li>一般来说 Release build 使得本程序集内的代码执行速度更快，而对第三方库的调用则几乎没有影响。</li>
+<li>对于本程序集内代码来说，Release build 对迭代和内存操作加速效果比较明显。</li>
+</ul>
+<h2 id="Debug-和-Release-build-的主要差异"><a href="#Debug-和-Release-build-的主要差异" class="headerlink" title="Debug 和 Release build 的主要差异"></a>Debug 和 Release build 的主要差异</h2><p>Debug 和 Release build 的一个最主要的区别是 Release build 会添加  <a href="http://blogs.msdn.com/b/ericlippert/archive/2009/06/11/what-does-the-optimize-switch-do.aspx" target="_blank" rel="noopener">/optimize</a> 选项。这个选项完成了两个任务：优化 IL 代码以及添加元数据。有意思的是第一项对性能提升的影响并不大。这是因为 CLR 应用的性能提升主要是由于 JIT 编译器而非具体的语言编译器完成的。语言编译器所完成的优化是很有限的，例如（不限于下面这些）：</p>
+<ul>
+<li>当一个表达式的逻辑仅仅有一个作用而无其他副作用的时候将只会把产生这些副作用的代码进行生成；</li>
+<li>忽略无用的赋值。例如 <code>int foo = 0</code>。因为我们知道 memory allocator 会将其初始化为 0（注：这是 IL 一级而非语言一级的）；</li>
+<li>当静态类没有需要初始化的 field，或者 field 初始化为默认值时忽略对静态构造函数的生成；</li>
+<li>忽略迭代中的局部未引用的变量（包括在仅仅在闭包的迭代中的未引用的外部变量）；</li>
+<li>复用函数的栈空间（局部变量复用，删除未使用的局部变量）；</li>
+<li>减少对局部变量（例如 <code>if</code> 和 <code>switch</code> 表达式的结果，以及函数调用的返回值）存储的要求而尽量的使用栈空间；</li>
+<li>优化 branch 跳转指令；</li>
+</ul>
+<p>这些优化都非常的直接，如果查看程序集的 IL 语句，会发现 /optimize 打开或关闭的情况下生成的代码几乎是相同的。不会有 IL 内联优化和循环的展开这种高级优化。因此性能提升不大。</p>
+<p><strong>但是</strong>，有一条 IL 优化对性能提升做出了相当的贡献，这里特别介绍一下：</p>
+<ul>
+<li>删除了一部分为 breakpoints 定位以及 edit and continue 而插入的 nop 指令，若知详情如何，请看下面的 Tips。</li>
+</ul>
+<p>真正起做用的是 /optimize 选项的第二个任务，更改 <code>DebuggableAttribute</code> 的参数。在添加 /optmize 的情况下该参数为 <code>IgnoreSymbolStoreSequencePoints</code>，而不会包含 <code>DisableOptimizations</code> 与 <code>EnableEditAndContinue</code>。这会实际的影响 JIT 编译器生成代码的策略。</p>
+<blockquote>
+<p>Tip:</p>
+<p>MSDN 对 <code>IgnoreSymbolStoreSequencePoints</code> 解释为：使用 MSIL 的序列点而非 PDB 的序列点。JIT 编译器不会将两个序列点的进行合并优化编译，因而使用 PDB 文件中提供的序列点就可以保证编译结果和 PDB 严格对应从而提供更好的 Debug 体验。</p>
+<p>有的同学就开始<strong>激动</strong>了，那么我如果使用 Debug Build 但是将 PDB 删除是否能够有和 optimize 一样的性能呢？显然不是的！由于加载 PDB 引发的这种性能问题在 .NET 2.0 的时候就已经解决了。解决的方式就是在 Debug build 中添加了 nop 指令作为隐式的序列点。从那之后，即使在 Debug build 下，其 <code>DebuggingModes</code> 也会包含 <code>IgnoreSymbolStoreSequencePoints</code> 选项了（因为根本没有必要加载 PDB）。</p>
+<p>此时应该明白了为何在 Release build 下删除了一些 nop 指令会使得执行效率得到提升，因为删除 nop 指令使得 JIT 编译器可以在相对大的范围内进行代码优化。</p>
+<p>但是如果入口应用程序是 Debug build 会不会影响 .NET BCL 或者第三方库的 JIT 编译结果呢？这是不会的，因为这个属性是 assembly scope 的，只要你使用的是 optimize 过的第三方库都会得到优化的 JIT 代码。</p>
+</blockquote>
+<h2 id="观察-JIT-优化的代码"><a href="#观察-JIT-优化的代码" class="headerlink" title="观察 JIT 优化的代码"></a>观察 JIT 优化的代码</h2><p>本文不会广泛展示 JIT 优化的结果，但是如果你希望对比一下 Debug 和 Release build 下的 JIT 编译结果必须首先更改 Visual Studio 的默认 Debug 设置。</p>
+<p>在 Visual Studio 中选择 Tools -&gt; Options -&gt; Debugging -&gt; General。</p>
+<ul>
+<li>取消 Enable Just My Code（这是因为优化的代码不属于 My Code 的范畴）</li>
+<li>取消 Suppress JIT optimization on module load (Managed only)（防止在 Visual Studio 启动项目时阻止 JIT 优化）</li>
+</ul>
+<p>至此就可以使用 Visual Studio 的调试器，在断点命中时通过 disassembly 窗口观看优化后的汇编代码了。</p>
+<h2 id="JIT-优化对不同场景的影响"><a href="#JIT-优化对不同场景的影响" class="headerlink" title="JIT 优化对不同场景的影响"></a>JIT 优化对不同场景的影响</h2><p>即便我们认识到开启 optimize 有可能使执行速度得到提升，但是在不同的使用场景下，其提升效果是不同的。</p>
+<h3 id="迭代和内存操作"><a href="#迭代和内存操作" class="headerlink" title="迭代和内存操作"></a>迭代和内存操作</h3><p>场景之一是自己的代码中包含比较多的算法成分（并不是调用系统或者第三方库的算法而是自己实现算法）。算法中最典型的即极多的迭代操作和内存读写，因而我们选择插入排序作为测试算法。</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// sample code</span></span><br><span class="line"><span class="keyword">int</span> length = collection.Count;</span><br><span class="line"><span class="keyword">for</span> (<span class="keyword">int</span> outerIndex = <span class="number">0</span>; outerIndex &lt; length; ++outerIndex)</span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">int</span> minimumIndex = outerIndex;</span><br><span class="line">    T minimum = collection[outerIndex];</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> innerIndex = outerIndex + <span class="number">1</span>; </span><br><span class="line">        innerIndex &lt; length; </span><br><span class="line">        ++innerIndex)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="keyword">if</span> (collection[innerIndex].CompareTo(minimum) &gt;= <span class="number">0</span>) </span><br><span class="line">        &#123;</span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">        minimumIndex = innerIndex;</span><br><span class="line">        minimum = collection[innerIndex];</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Utility.Swap(collection, outerIndex, minimumIndex);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>测试结果如下：</p>
+<blockquote>
+<p><strong>Iteration on value type test (selection sort on 20000 32-bit int array)</strong></p>
+<ul>
+<li>Debug build: 4.56s</li>
+<li>Release build: 1.81s</li>
+</ul>
+</blockquote>
+<p>我们必须确认两种不同的 build 的执行速度提升确实发生在迭代和内存读写上。通过 Profiling 我们可以证实这一猜想。其性能提升主要发生在循环体迭代，也就是 <code>for (int outerIndex = 0; outerIndex &lt; length; ++outerIndex)</code>，数组数据读写，以及细小方法调用 <code>collection[innerIndex].CompareTo(minimum)</code> 上。其优化手法主要是尽量使用寄存器而不是内存寻址。</p>
+<p>例如，内层循环 <code>for (int innerIndex = outerIndex + 1; innerIndex &lt; length; ++innerIndex)</code> 在 Release build 下被编译为：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">// outerIndex + 1</span><br><span class="line">00007FFCBA5746F2  inc         ebx</span><br><span class="line">// stack pointer change</span><br><span class="line">00007FFCBA5746F4  inc         ebp </span><br><span class="line">// compare innerIndex to length</span><br><span class="line">00007FFCBA5746F6  cmp         ebx,esi</span><br><span class="line">00007FFCBA5746F8  jl          00007FFCBA5746A0</span><br></pre></td></tr></table></figure>
+<p>而 Debug build 是这样的</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">// read outerIndex to eax, increase eax then stores the value back</span><br><span class="line">00007FFCBA594BA5  mov         eax,dword ptr [rbp+7Ch]  </span><br><span class="line">00007FFCBA594BA8  inc         eax</span><br><span class="line">00007FFCBA594BAA  mov         dword ptr [rbp+7Ch],eax</span><br><span class="line">// set ecx to 0</span><br><span class="line">00007FFCBA594BAD  xor         ecx,ecx  </span><br><span class="line">// load length to eax</span><br><span class="line">00007FFCBA594BAF  mov         eax,dword ptr [rbp+8Ch]  </span><br><span class="line">// compare with increased outerIndex and to set the flag, move the flag value to eax and test if the value is true or not</span><br><span class="line">00007FFCBA594BB5  cmp         dword ptr [rbp+7Ch],eax  </span><br><span class="line">00007FFCBA594BB8  setl        cl  </span><br><span class="line">00007FFCBA594BBB  mov         dword ptr [rbp+64h],ecx  </span><br><span class="line">00007FFCBA594BBE  movzx       eax,byte ptr [rbp+64h]  </span><br><span class="line">00007FFCBA594BC2  mov         byte ptr [rbp+77h],al  </span><br><span class="line">00007FFCBA594BC5  movzx       eax,byte ptr [rbp+77h]  </span><br><span class="line">00007FFCBA594BC9  test        eax,eax  </span><br><span class="line">00007FFCBA594BCB  jne         00007FFCBA594B04</span><br></pre></td></tr></table></figure>
+<p>JIT 还将 <code>int.CompareTo</code> 的调用进行了内联。在本例中，其贡献达到了 50% 左右，但是这个提升只在所有操作都基本是细小操作的时候才会显现。</p>
+<p>从上述分析中不难看出，/optimize 对迭代中的内存操作的优化非常有效，因此如果我们迭代的并非 value type 而是需要多次进行寻址（因为要不断的使用其 field 值）的 reference type 则性能提升也会非常明显。</p>
+<blockquote>
+<p><strong>Iteration on reference type test (selection sort on 20000 ref instance array. The ref type contains 1 int field)</strong></p>
+<ul>
+<li>Debug build: 11.57s</li>
+<li>Release build: 4.00s</li>
+</ul>
+</blockquote>
+<p>类似的操作还例如 DTO 之间的映射，这个操作也属于迭代式的内存密集形操作。在如下的测试代码：</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> source = Enumerable.Range(<span class="number">0</span>, dataAmount)</span><br><span class="line">    .Select(</span><br><span class="line">        i =&gt; <span class="keyword">new</span> Dto</span><br><span class="line">        &#123;</span><br><span class="line">            Name = <span class="keyword">new</span> NameDto</span><br><span class="line">            &#123;</span><br><span class="line">                FirstName = <span class="string">"firstname"</span> + i,</span><br><span class="line">                Middle = <span class="string">"Q"</span>,</span><br><span class="line">                LastName = <span class="string">"lastname"</span> + i</span><br><span class="line">            &#125;,</span><br><span class="line">            Age = <span class="number">20</span> + i % <span class="number">10</span></span><br><span class="line">        &#125;);</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> destination = source.Select(</span><br><span class="line">    e =&gt; <span class="keyword">new</span></span><br><span class="line">    &#123;</span><br><span class="line">        FirstName = e.Name.FirstName,</span><br><span class="line">        MiddleName = e.Name.Middle,</span><br><span class="line">        LastName = e.Name.LastName,</span><br><span class="line">        Age = e.Age</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">m_count = destination.Count();</span><br></pre></td></tr></table></figure>
+<p>每一次 5,000,000 个迭代测试的情况下能够获得 15% 以上的执行速度提升。其主要的优化手段仍然是尽量的使用寄存器。</p>
+<h3 id="非频繁的库调用"><a href="#非频繁的库调用" class="headerlink" title="非频繁的库调用"></a>非频繁的库调用</h3><p>该场景下仅对系统或者第三方库进行非频繁调用。非频繁的调用有两种情况，第一种情况属于调用的方法仍是有相当复杂程度的算法，这是非频繁调用的常见情况；第二种是非频繁调用的方法也非常简单，但是这对性能影响不大因此我们只关注第一种情况。</p>
+<p>在测试之前，不妨预测一下，由于我们系统 BCL 和第三方库均使用 /optimize 进行 build，因此对于非频繁的库调用，我们的代码优化的空间并不大，性能数据应当非常接近。以下是测试结果。</p>
+<blockquote>
+<p><strong>Infrequent lib calls (quick sort 9,000,000 integers x 5 runs)</strong></p>
+<ul>
+<li>Debug build: 6.37s</li>
+<li>Release build: 6.62s</li>
+</ul>
+</blockquote>
+<h3 id="频繁的库调用"><a href="#频繁的库调用" class="headerlink" title="频繁的库调用"></a>频繁的库调用</h3><p>频繁的库调用往往包含对细小的操作进行的调用。我们着重关注 Parsing 和 ToString 这两种常见的操作。这是因为在 Web App 中，Serialize - deserialize 是最频繁而常见的操作。</p>
+<p>同样我们可以预测执行的结果。由于是频繁操作，因此迭代部分的性能会有一些增强。但是相比于迭代，库调用的时间要长的多，因此这种性能增益几乎是不可见的。可以预见其性能数据应当是非常接近的。</p>
+<p>测试代码范例：</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">double</span> next = <span class="number">1</span>d + random.NextDouble();</span><br><span class="line">total += <span class="keyword">double</span>.Parse(next.ToString(CultureInfo.InvariantCulture));</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p><strong>Frequent lib calls (serialize/deserialize <code>double</code> x 5,000,000 times)</strong></p>
+<ul>
+<li>Debug build: 6.89s</li>
+<li>Release build: 6.77s</li>
+</ul>
+</blockquote>
+<p>为了保证测试的有效性我们仍然需要确认性能的消耗主要发生在 serialize - deserialize 上。Profile 结果和我们预想是一致的：</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; iterationCount; ++i) <span class="comment">// 0.5%</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">double</span> next = <span class="number">1</span>d + random.NextDouble(); <span class="comment">// 1.3%</span></span><br><span class="line">    total += <span class="keyword">double</span>.Parse(</span><br><span class="line">        next.ToString(CultureInfo.InvariantCulture)); <span class="comment">// 98.2%</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="频繁的闭包调用"><a href="#频繁的闭包调用" class="headerlink" title="频繁的闭包调用"></a>频繁的闭包调用</h3><p>我们关注频繁的闭包调用，因为 LINQ 以及事件处理已经得到了非常广泛的应用。其典型形式是使用匿名函数或 lambda 表达式作为回调方法。回调方法往往执行数据的加工（Select）或者筛选（Where）。</p>
+<p>由于使用 LINQ 就是库调用，因此迭代的优化不论 Debug 还是 Release build 都会发生，唯一的优化空间只是匿名委托的内联以及寄存器的使用，但这样也不会带来什么性能提升，因为大多数情况下匿名函数的执行时间要比 call 长的多。可以预见，Debug build 和 Release build 的性能指标是比较接近的。</p>
+<p>测试代码范例：</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">IEnumerable&lt;<span class="keyword">double</span>&gt; enumerable = Enumerable</span><br><span class="line">    .Range(<span class="number">1</span>, iterationAmount)</span><br><span class="line">    .Select(</span><br><span class="line">        i =&gt;</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="keyword">string</span> str = i.ToString(CultureInfo.InvariantCulture);</span><br><span class="line">            <span class="keyword">int</span> operand = <span class="keyword">int</span>.Parse(str);</span><br><span class="line">            <span class="keyword">return</span> Math.Pow(operand, factor);</span><br><span class="line">        &#125;)</span><br><span class="line">    .Where(i =&gt; i &gt; <span class="number">0.2</span>);</span><br><span class="line"><span class="keyword">double</span> total = enumerable.Average();</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p><strong>Frequent closure calls (for 8,000,000 iterations)</strong></p>
+<ul>
+<li>Debug build: 4.51s</li>
+<li>Release build: 4.47s</li>
+</ul>
+</blockquote>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>可见 JIT 编译器对 BCL 以及 Release build 下的第三方库调用影响并不大，因为本地代码本身并不占有很多的比重，典型的情形例如数据库查询。但是对于本地代码占有很高比重，且其中包含大量的迭代和内存操作的情形（光线追踪，服务端页面生成（非预编译的情形），批量 DTO / Entity 映射）的可以起到比较不错的优化效果。</p>
+<p>因此，从执行速度的角度上考虑，推荐在 Package/Deployment 的时候切换至 Release build。</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/performance/">performance</a><a href="/tags/jit/">jit</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

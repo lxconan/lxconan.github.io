@@ -1,0 +1,187 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="zUaS4Gbh7E">
+  
+  <title>【我好像遇到了假的 C#】2018年06月02日--first element in array | The Coding Life | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="Hello 大家好，儿童节过得怎么样？今天我们会解答一下昨天的问题，然后带来了一道还算正常一点，但是仍然很有趣的题目哦。">
+  
+
+  
+  
+  <meta name="keywords" content="csharp,array">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="【我好像遇到了假的 C#】2018年06月02日--first element in array">
+
+  <meta property="og:site_name" content="The Coding Life">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The Coding Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The Coding Life</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>【我好像遇到了假的 C#】2018年06月02日--first element in array</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/06/02/funny-csharp-first-element/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-06-01T16:35:06.000Z">
+          2018-06-02
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>Hello 大家好，儿童节过得怎么样？今天我们会解答一下昨天的问题，然后带来了一道还算正常一点，但是仍然很有趣的题目哦。</p>
+<a id="more"></a>
+<h2 id="上期问题解答"><a href="#上期问题解答" class="headerlink" title="上期问题解答"></a>上期问题解答</h2><p>上期我们介绍了一个你绝对不要在 PROD Code 中书写的方法：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">void</span> <span class="title">TryModifyReadonlyRef</span>(<span class="params"><span class="keyword">in</span> <span class="keyword">int</span> <span class="keyword">value</span></span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">unsafe</span></span><br><span class="line">  &#123;</span><br><span class="line">    <span class="keyword">fixed</span> (<span class="keyword">int</span>* ptr = &amp;<span class="keyword">value</span>)</span><br><span class="line">    &#123;</span><br><span class="line">      *ptr = <span class="number">2</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这个方法可以将语义上为 <code>readonly ref</code> 的参数的值改变：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">int</span> <span class="keyword">value</span> = <span class="number">5</span>;</span><br><span class="line">TryModifyReadonlyRef(<span class="keyword">in</span> <span class="keyword">value</span>);</span><br><span class="line"><span class="comment">// 现在 value 是 2 了。</span></span><br></pre></td></tr></table></figure>
+<p>我们并不是追逐奇技淫巧，只是想向大家展示 <em>unsafe</em> 意味着什么。用人话说 <em>unsafe</em> 意味着请不要管我，我知道我要干什么。因此上述代码编译器甚至根本不会提出任何警告来。</p>
+<p>当然只有上述解释是不够的。我们还是要看一看相关的 spec。目前 C# 语言的 Spec 正式版本还是停留在 5 的。C#6-7 的 spec 目前仅停留在 draft 阶段。以讨论的形式存档在</p>
+<p><a href="https://github.com/dotnet/csharplang" target="_blank" rel="noopener">https://github.com/dotnet/csharplang</a></p>
+<p>其中关于 <code>unsafe</code> 的说明位于：</p>
+<p><a href="https://github.com/dotnet/csharplang/blob/master/spec/unsafe-code.md" target="_blank" rel="noopener">https://github.com/dotnet/csharplang/blob/master/spec/unsafe-code.md</a></p>
+<p>在 overview 的部分，提到了在 <em>unsafe code</em> 中，可以声明并操作指针，在指针和整数之间转换，利用变量的地址。而由于 <em>unsafe code</em> 必须标记为 <code>unsafe</code> 这也就意味着开发人员不会 <em>不小心</em> 书写了这种代码。</p>
+<p>在指针类型部分可以看到，C# 只有一种指针类型 <code>T*</code>（这和 C/C++ 是不同的，例如 <code>T *</code>, <code>T const *</code>, <code>T * const</code>, <code>T const * const</code>），并可以执行复引用、访问结构体成员、索引、<code>++</code>/<code>--</code> 等 9 种操作。因此，对于 unsafe context 来说，它并不区分变量的指针，还是一个 <code>in</code> 参数的指针。而它就真的操作了~</p>
+<p>总之 <em>unsafe code</em> 威力巨大，并且编译器一般不会对你进行温馨提示。 书写 <em>unsafe</em> 代码一定三思而行。（如果你考虑的是性能，那么可以考虑新的 <code>Span</code> 会不会帮到你）。</p>
+<h2 id="本期问题"><a href="#本期问题" class="headerlink" title="本期问题"></a>本期问题</h2><figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">object</span> <span class="title">First</span>(<span class="params"><span class="keyword">this</span> Array array</span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="meta">#<span class="meta-keyword">region</span> Please implement the method</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">/*</span></span><br><span class="line"><span class="comment">   * 请书写一个方法，获得数组的第一个元素。</span></span><br><span class="line"><span class="comment">   * - 不许用 LINQ 中的任何方法。例如 First()</span></span><br><span class="line"><span class="comment">   * - 不许用 IEnumerable 中的任何方法。</span></span><br><span class="line"><span class="comment">   * - 不许用数组提供的 FindXXX，或者 IndexOfXXX 这样的方法。</span></span><br><span class="line"><span class="comment">   * - 过程中不得拷贝数组。</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">throw</span> <span class="keyword">new</span> NotImplementedException();</span><br><span class="line"></span><br><span class="line">  <span class="meta">#<span class="meta-keyword">endregion</span></span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>往往看上去最简单的问题也会有深坑巨沟。</p>
+<p>如果您觉得本文对您有帮助，也欢迎分享给其他的人。我们一起进步。欢迎关注我的微信公众号：</p>
+<p><img src="/images/blog/funny_csharp_barcode.jpeg" style="text-align:center" alt="wechat-app-barcode"></p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/csharp/">csharp</a><a href="/tags/array/">array</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="zUaS4Gbh7E">
+  
+  <title>【我好像遇到了假的 C#】2018年06月14日--unicode | The Coding Life | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="Hello 大家好，本星期我要和娃一起开心的玩耍，所以更新缓慢了些。上一期的问题非常有趣。不知道大家有没有得出自己的结论呢。老规矩我们还是看一下上一期的问题。本期我们转战另一个战场，嗯，字符串。谁知道字符串上可能会发生什么好玩儿的事情呢对吧。">
+  
+
+  
+  
+  <meta name="keywords" content="csharp,unicode,string">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="【我好像遇到了假的 C#】2018年06月14日--unicode">
+
+  <meta property="og:site_name" content="The Coding Life">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The Coding Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The Coding Life</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>【我好像遇到了假的 C#】2018年06月14日--unicode</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/06/13/funny-csharp-unicode/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-06-13T15:40:55.000Z">
+          2018-06-13
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>Hello 大家好，本星期我要和娃一起开心的玩耍，所以更新缓慢了些。上一期的问题非常有趣。不知道大家有没有得出自己的结论呢。老规矩我们还是看一下上一期的问题。本期我们转战另一个战场，嗯，字符串。谁知道字符串上可能会发生什么好玩儿的事情呢对吧。</p>
+<a id="more"></a>
+<h2 id="上期问题解答"><a href="#上期问题解答" class="headerlink" title="上期问题解答"></a>上期问题解答</h2><p>上期的问题有些强人所难的意思。假设现在我们要自己实现一个 <strong>栈</strong> 类：<code>MyStack&lt;T&gt;</code>，它的定义是：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">class MyStack&lt;T&gt;</span><br><span class="line">&#123;</span><br><span class="line">  <span class="function"><span class="keyword">public</span> T <span class="title">Pop</span>(<span class="params"></span>)</span> &#123; ... &#125;</span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">Push</span>(<span class="params">T <span class="keyword">value</span></span>)</span> &#123; ... &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>但是我们现在希望 <code>MyStack</code> 类在 <code>Pop</code> 和 <code>Push</code> 方法上正确的体现相应的逆变和协变功能，那么我们该怎么做呢？</p>
+<p>首先类是不可能定义逆变和协变的，只能是接口或委托。在这里我们肯定是使用接口了。但是在一个接口上是不可能同时定义类型参数的逆变和协变的。那怎么办呢。这让我想起了火影忍者里面卡卡西教鸣人搓团子……哦不不是搓螺旋丸的时候鸣人抱怨说怎么可能两个眼睛一只向左看一只向右看呢！此时卡卡西道出了解决问题的真谛：</p>
+<p><img src="/images/blog/funny_csharp_unicode_variance.jpg" style="text-align:center" alt="variance"></p>
+<p>因此，如果我们也想做一个大玉螺旋丸（<code>MyStack&lt;T&gt;</code>）那么我们也来个影分身先（做两个接口，一个协变，一个逆变）：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">interface IPopable&lt;out T&gt; </span><br><span class="line">&#123;</span><br><span class="line">  <span class="function">T <span class="title">Pop</span>(<span class="params"></span>)</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">interface IPushable&lt;in T&gt;</span><br><span class="line">&#123;</span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">Push</span>(<span class="params">T <span class="keyword">value</span></span>)</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>此时，令 <code>MyStack&lt;T&gt;</code> 同时实现两个接口：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">class MyStack&lt;T&gt;: IPopable&lt;T&gt;, IPushable&lt;T&gt;</span><br><span class="line">&#123;</span><br><span class="line">  <span class="function"><span class="keyword">public</span> T <span class="title">Pop</span>(<span class="params"></span>)</span> &#123; ... &#125;</span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">Push</span>(<span class="params">T <span class="keyword">value</span></span>)</span> &#123; ... &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这样对于协变来说：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> stack = <span class="keyword">new</span> MyStack&lt;Derived&gt;();</span><br><span class="line"></span><br><span class="line"><span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> popable = (IPopable&lt;Derived&gt;)stack;</span><br><span class="line">IPopable&lt;Base&gt; popableWithBase = popable;</span><br><span class="line"></span><br><span class="line">Base item = popableWithBase.Pop();   <span class="comment">// 完全没有问题</span></span><br></pre></td></tr></table></figure>
+<p>而对于逆变来说：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> stack = <span class="keyword">new</span> MyStack&lt;Base&gt;();</span><br><span class="line"></span><br><span class="line"><span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> pushable = (IPushable&lt;Base&gt;)stack;</span><br><span class="line">IPushable&lt;Derived&gt; pushableDerived = stack;</span><br><span class="line"></span><br><span class="line">pushableDerived.Push(<span class="keyword">new</span> Derived()); <span class="comment">// 完全没有问题</span></span><br></pre></td></tr></table></figure>
+<h2 id="本期问题"><a href="#本期问题" class="headerlink" title="本期问题"></a>本期问题</h2><p>本期我们转战另外一个领域了——字符串。这个好像没有什么奇奇怪怪的东西吧~好了请听题哦：这个题目就是，如何计算字符串中字符的数目 O_o，对你没有听错，请实现如下的函数：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> <span class="keyword">int</span> <span class="title">GetCharacterLength</span>(<span class="params"><span class="keyword">string</span> text</span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  <span class="keyword">throw</span> <span class="keyword">new</span> NotImplementedException();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使其至少能够通过如下的测试：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> IEnumerable&lt;<span class="keyword">object</span>[]&gt; TestCases() =&gt;</span><br><span class="line">  <span class="keyword">new</span>[]</span><br><span class="line">  &#123;</span><br><span class="line">      <span class="keyword">new</span> <span class="keyword">object</span>[]&#123;<span class="string">""</span>, <span class="number">0</span>&#125;,</span><br><span class="line">      <span class="keyword">new</span> <span class="keyword">object</span>[]&#123;<span class="string">"12345"</span>, <span class="number">5</span>&#125;,</span><br><span class="line">      <span class="keyword">new</span> <span class="keyword">object</span>[]&#123;<span class="keyword">char</span>.ConvertFromUtf32(<span class="number">0x2A601</span>) + <span class="string">"1234"</span>, <span class="number">5</span>&#125;</span><br><span class="line">  &#125;;</span><br><span class="line"></span><br><span class="line">[<span class="meta">Theory</span>]</span><br><span class="line">[<span class="meta">MemberData(nameof(TestCases))</span>]</span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">should_calculate_text_character_length</span>(<span class="params"><span class="keyword">string</span> testString, <span class="keyword">int</span> expectedLength</span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">  Assert.Equal(expectedLength, GetCharacterLength(testString));</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>好了，今天的内容就到这里了。如果您觉得本文对您有帮助，也欢迎分享给其他的人。我们一起进步。欢迎关注我的微信公众号：</p>
+<p><img src="/images/blog/funny_csharp_barcode.jpeg" style="text-align:center" alt="wechat-app-barcode"></p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/csharp/">csharp</a><a href="/tags/unicode/">unicode</a><a href="/tags/string/">string</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

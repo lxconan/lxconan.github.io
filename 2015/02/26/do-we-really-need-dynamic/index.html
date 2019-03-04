@@ -1,0 +1,242 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="zUaS4Gbh7E">
+  
+  <title>你真的非用 dynamic 不行 | The Coding Life | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="自从 .NET 4.0 开始引入 dynamic 之后，好像将 C# 一夜之间变成了动态语言。使用场景不计其数。但是，你真的一定要用 dynamic 吗？">
+  
+
+  
+  
+  <meta name="keywords" content="csharp,dynamic,coupling">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="你真的非用 dynamic 不行">
+
+  <meta property="og:site_name" content="The Coding Life">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The Coding Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The Coding Life</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>你真的非用 dynamic 不行</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2015/02/26/do-we-really-need-dynamic/" rel="bookmark">
+        <time class="entry-date published" datetime="2015-02-26T07:38:51.000Z">
+          2015-02-26
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>自从 .NET 4.0 开始引入 <code>dynamic</code> 之后，好像将 C# 一夜之间变成了动态语言。使用场景不计其数。但是，你真的一定要用 <code>dynamic</code> 吗？</p>
+<a id="more"></a>
+<h2 id="微软推荐场景"><a href="#微软推荐场景" class="headerlink" title="微软推荐场景"></a>微软推荐场景</h2><p>首先介绍一下微软的推荐场景吧：Interop。由于动态语言运行时（DLR）的引入，Interop 已经从 Win32 API 和 COM 扩展到了与动态语言的交互。考虑到动态语言的 Schema less 的特性，的确是一个适用 <code>dynamic</code> 的场景。</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">ScriptEngine engine = Python.CreateEngine();</span><br><span class="line">ScriptScope scope = <span class="literal">null</span>;</span><br><span class="line"></span><br><span class="line">scope = engine.CreateScope();</span><br><span class="line">ScriptSource source = engine.CreateScriptSourceFromFile(<span class="string">"Script.py"</span>);</span><br><span class="line"></span><br><span class="line">source.Execute(scope);</span><br><span class="line"></span><br><span class="line"><span class="keyword">dynamic</span> mc = scope.GetVariable(<span class="string">"ReturnObject"</span>)</span><br></pre></td></tr></table></figure>
+<p>而另一个场景就不这么直观了： COM Interop。以 Office COM API 为例。由于 Office COM API 的 Query 参数一般是 <code>IDispatch **</code>。这样在 C# 中的类型就全部变成了 <code>object</code>。因此我们必须首先将其转换为正确的接口类型再进行使用。援引微软官方的例子：</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">((Excel.Range)workSheet.Columns[<span class="number">1</span>]).AutoFit();</span><br><span class="line">((Excel.Range)workSheet.Columns[<span class="number">2</span>]).AutoFit();</span><br></pre></td></tr></table></figure>
+<p>而对于 Visual Studio 2010 之后的 Interop Assembly，将 <code>object</code> 转换为了 <code>dynamic</code>。 因此我们只需要这样写就行了：</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">workSheet.Columns[<span class="number">1</span>].AutoFit();</span><br><span class="line">workSheet.Columns[<span class="number">2</span>].AutoFit();</span><br></pre></td></tr></table></figure>
+<p>好的，优雅多了，少了很多类型转换的工作。<strong>但是</strong>如果你不小心打错了一个字的话就只能指望运行时再去慢慢发现了。另外，这也意味着某些代码分析功能，例如 <em>find usage</em> 变得不可用或者不准确。如果不用 <code>dynamic</code> 呢？只需要很小的努力就可以避免这些问题。</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> Excel.<span class="function">Range <span class="title">GetColumns</span>(<span class="params"></span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">this</span> Excel.WorkSheet workSheet, </span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">int</span> index</span>) </span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> (Excel.Range)workSheet.Columns(index);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">workSheet.GetColumns(<span class="number">1</span>).AutoFit();</span><br><span class="line">workSheet.GetColumns(<span class="number">2</span>).AutoFit();</span><br></pre></td></tr></table></figure>
+<p>个人觉得这种小小的努力在保持了目标程序优雅程度的同时，比起需要不断的翻阅文档确认某个对象是否具备某些属性或者方法的维护成本要低一些。不过考虑到 Office API 的庞杂，如果你的确较为广泛的使用了这些 API，这样自行封装的成本不能再忽略的时候使用 <code>dynamic</code> 也可以是一种选择。</p>
+<p>综上，对于和原生的动态语言交互，<code>dynamic</code> 的确非常适用；而对于 COM Interop 来说，<code>dynamic</code> 并非是一个非常适用的场景。</p>
+<h2 id="静态与动态"><a href="#静态与动态" class="headerlink" title="静态与动态"></a>静态与动态</h2><p>话分两头，在讨论到底用谁之前，先来关注一下耦合。</p>
+<h3 id="物理耦合和逻辑耦合"><a href="#物理耦合和逻辑耦合" class="headerlink" title="物理耦合和逻辑耦合"></a>物理耦合和逻辑耦合</h3><p>和物理世界一样。在足够优化的情况下，耦合也维持着守恒。耦合分为两种，一种是程序之间显式的使用，包含，聚合等关系。这种关系是可见的，静态可分析的，称之为 <strong>物理耦合</strong>。另外一种耦合关系则不同，具有耦合关系的两个部分并没有可见的，静态的关联。而是隐含在各自的程序之中。当一个部分发生变化的时候，另一个部分的行为也将被影响。称之为 <strong>逻辑耦合</strong>。</p>
+<blockquote>
+<p>假设有两个模块，一个模块负责加密，另一个模块负责解密。两个模块不共用任何代码各自独立实现。</p>
+</blockquote>
+<blockquote>
+<p>一开始，他们各自正确实现了 DES 算法的加解密。这样，通过加密模块生成的密文能够正确的被解密模块解密。但是，由于 DES 算法的安全性较差，加密模块更改了自己的算法。这时，解密模块便不能够正确的解析加密模块生成的密文了。</p>
+</blockquote>
+<blockquote>
+<p>上述例子中，加密解密模块虽然不存在任何形式的物理耦合，但是却存在逻辑耦合。在加密模块改变自己的算法的时候，没有任何静态分析的办法得知到底有多少模块会为此而被影响。</p>
+</blockquote>
+<p>逻辑耦合有三种别名：</p>
+<ul>
+<li>在逻辑耦合被广泛接受的情况下，称之为 <em>Convension</em>；</li>
+<li>在逻辑耦合被良好的定义和记录的情况下，称之为 <em>Contract</em>；</li>
+<li>在并不满足上述两种情况时，逻辑耦合往往只停留在一两个人的脑子里，称之为 <strong>烂代码</strong>。</li>
+</ul>
+<h3 id="耦合的守恒与静动态的选择"><a href="#耦合的守恒与静动态的选择" class="headerlink" title="耦合的守恒与静动态的选择"></a>耦合的守恒与静动态的选择</h3><p>虽然物理耦合和逻辑耦合和静态类型系统和动态类型系统并没有严格的对应关系，但却能代表其典型的应用场景。例如，在静态类型系统中显式定义的使用，包含，聚合等关系是物理耦合的典型表现形式。而 <code>dynamic</code> 则属于逻辑耦合的形式。</p>
+<p>当选择了静态类型系统时，大部分耦合关系表现为物理耦合的形式，各个部分关系相对显式而清晰。即使程序具备复杂的结构，其知识的传递和<strong>维护</strong>也相对容易。若选择了动态系统，则可以获得更加优雅灵活的代码，但由于耦合是守恒的，因此必须用额外的形式（例如测试，文档等）对逻辑耦合进行记录以保证程序的可<strong>维护</strong>性。</p>
+<p>因此，到底选择使用静态类型系统，还是选择使用 <code>dynamic</code> 应当取决于你要解决的问题。而不管采用哪种形式都必须要保证程序的可维护性。</p>
+<blockquote>
+<p>即便是在动态类型语言中，我们也倾向于从写法上模拟静态类型定义。例如我们可能更倾向于</p>
+</blockquote>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> MyType = (<span class="function"><span class="keyword">function</span> (<span class="params"></span>) </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">function</span> <span class="title">MyType</span>(<span class="params"></span>) </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>._name = <span class="literal">undefined</span>;</span><br><span class="line">        <span class="keyword">this</span>._birthyear = <span class="literal">undefined</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line"></span><br><span class="line">    MyType.prototype.set_name = <span class="function"><span class="keyword">function</span> (<span class="params">name</span>) </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>._name = name;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> MyType;</span><br><span class="line">&#125;)();</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>否则只有当看到了 <code>set_name</code> 的时候，才能够确定 MyType 具有 <code>_name</code> 这个 field。而如果为了避免使用 field 而将其全部暴露为属性，则又破坏了封装。</p>
+</blockquote>
+<h2 id="我们需要-dynamic-的地方并不多"><a href="#我们需要-dynamic-的地方并不多" class="headerlink" title="我们需要 dynamic 的地方并不多"></a>我们需要 <code>dynamic</code> 的地方并不多</h2><h3 id="Contract-往往不需要-dynamic"><a href="#Contract-往往不需要-dynamic" class="headerlink" title="Contract 往往不需要 dynamic"></a>Contract 往往不需要 <code>dynamic</code></h3><p><code>dynamic</code> 相关的代码在多数情况下都会引入逻辑耦合。因此我们可以考察逻辑耦合的三种形式：</p>
+<ul>
+<li>我们很少有机会自己写 Framework。因此引入 Convension 的机会并不多。</li>
+<li>谁都不希望自己写烂代码；</li>
+<li>那么就剩下 <em>Contract</em> 了。</li>
+</ul>
+<p>假设有两个模块：_A_、 _B_。对于一个请求过程，_A_ 的请求对象为 <em>RequestA</em>，而 _B_ 的接收请求对象为 <em>RequestB</em>。则 <em>RequestA</em> 和 <em>RequestB</em> 的关系应该如下图所示：</p>
+<p><img src="/images/blog/contract_relationship.png" alt="contract relationship"></p>
+<p>从之前的讨论可知，我们关注的是 Schema 的部分而非业务领域的部分。则对于 _A_ 系统，从 Schema 的角度需要确保返回结构为 _ReqA’ _ + <em>Intersaction</em> 的对象而对于 _B_ 系统，需要确保可以接受 <em>ReqB’ + Intersaction</em> 或者 <em>Intersaction</em> 的对象。即一共需要保证 3 种不同的情况。</p>
+<p>如果使用静态类型系统，则需要定义 2 个 Dto</p>
+<ul>
+<li><em>RequestA</em> = <em>ReqA’</em> + <em>Intersaction</em></li>
+<li><em>RequestB</em> = <em>ReqB’</em> + <em>Intersaction</em></li>
+</ul>
+<p>另外，还需要做一种情形的 Contract 测试或者补充文档说明：即 <em>Intersaction</em> 部分的测试/文档。</p>
+<p>若使用 <code>dynamic</code> 来代表 DTO。则需要在系统 _A_ 中添加对 Response 的测试/文档；需要在系统 _B_ 中添加对两种情况的 Contract 测试/文档。但是，即使添加了这些测试/文档，也很难搞清系统 _A_ 和系统 _B_ 的 Contract 的全貌。而在实际中，大部分项目仅仅添加了 <em>Intersaction</em> 部分的测试。随着系统 _A_ 和系统 _B_ 不断独立的发生变化，其 Contract 的 Schema 将变得更加难以维护。</p>
+<p>例如，当你看到这样的 API 的时候，你觉得应该怎么做才能搞清楚 Request 的 Model 里面有什么呢？</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> HttpResponseMessage <span class="title">Upload</span>(<span class="params">[FromBody] <span class="keyword">dynamic</span> fileUploadRequest</span>)</span> &#123;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>而这样的时候，是否能够非常容易的搞清楚呢？并且还不用写那么多测试/文档。</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> HttpResponseMessage <span class="title">Upload</span>(<span class="params">[FromBody] FileUploadRequest fileUploadRequest</span>)</span> &#123;</span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="局部上下文中使用匿名对象代替-dynamic"><a href="#局部上下文中使用匿名对象代替-dynamic" class="headerlink" title="局部上下文中使用匿名对象代替 dynamic"></a>局部上下文中使用匿名对象代替 <code>dynamic</code></h3><p>在封装的局部上下文中，有时需要引入一些临时的数据结构。此时，可以考虑使用匿名对象代替 <code>dynamic</code>，即倾向于使用：</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> temporaryStructure = <span class="keyword">new</span> &#123;</span><br><span class="line">    Name = <span class="keyword">new</span> &#123;</span><br><span class="line">        FirstName = <span class="string">"Tom"</span>,</span><br><span class="line">        LastName = <span class="string">"Hall"</span></span><br><span class="line">    &#125;,</span><br><span class="line">    BirthYear = <span class="number">1985</span></span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<p>而不是使用</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">dynamic</span> name = <span class="keyword">new</span> ExpandoObject();</span><br><span class="line">name.FirstName = <span class="string">"Tom"</span>;</span><br><span class="line">name.LastName = <span class="string">"Hall"</span>;</span><br><span class="line"><span class="keyword">dynamic</span> temporaryStructure = <span class="keyword">new</span> ExpandoObject();</span><br><span class="line">temporaryStructure.BirthYear = <span class="number">1985</span>;</span><br></pre></td></tr></table></figure>
+<h2 id="综合"><a href="#综合" class="headerlink" title="综合"></a>综合</h2><p>我们没有办法消灭程序的必要信息，对于耦合，要么是物理耦合，要么是逻辑耦合；对于Schema，要么定义在程序中，要么存在在你的思维里。而让程序变得可维护的方法，就是尽量用程序（定义静态类型，或者写测试）来表示这些信息。因此，综合考虑一句话总结：能不用，就别用。</p>
+<p>那么什么时候可以考虑使用呢？</p>
+<ul>
+<li>当我们希望和动态语言引擎进行 Interop 的时候；</li>
+<li>当我们书写 Framework 并期望为其引入某些 Convension 的时候；</li>
+</ul>
+<p>除了上述两种情况之外，还存在一种额外的情形。不过这篇文章就不展开了。</p>
+<ul>
+<li>当传统的继承组合体系不能满足要求的时候（例如，有非常强烈的使用 mixin 的要求）。</li>
+</ul>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/csharp/">csharp</a><a href="/tags/dynamic/">dynamic</a><a href="/tags/coupling/">coupling</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

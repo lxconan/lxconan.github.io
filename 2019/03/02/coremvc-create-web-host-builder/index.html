@@ -1,0 +1,209 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="zUaS4Gbh7E">
+  
+  <title>ASP.NET Core 沉思录 - CreateWebHostBuilder 是一个 Convension | The Coding Life | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="失踪人口回归。去年六月份开始，我开始翻译一千多页的《CSharp 7 in a Nutshell》到现在为止终于告一段落。我又回归了表世界。从这次开始我希望展开一个全新的主题。我叫它 ASP.NET Core 沉思录（多么高大上的名字，自我陶醉~）。今天是第一个主题。CreateWebHostBuilder 是一个 Convension。">
+  
+
+  
+  
+  <meta name="keywords" content="aspnetcore,testing">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="ASP.NET Core 沉思录 - CreateWebHostBuilder 是一个 Convension">
+
+  <meta property="og:site_name" content="The Coding Life">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The Coding Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The Coding Life</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>ASP.NET Core 沉思录 - CreateWebHostBuilder 是一个 Convension</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2019/03/02/coremvc-create-web-host-builder/" rel="bookmark">
+        <time class="entry-date published" datetime="2019-03-02T02:01:13.000Z">
+          2019-03-02
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>失踪人口回归。去年六月份开始，我开始翻译一千多页的《CSharp 7 in a Nutshell》到现在为止终于告一段落。我又回归了表世界。从这次开始我希望展开一个全新的主题。我叫它 ASP.NET Core 沉思录（多么高大上的名字，自我陶醉~）。今天是第一个主题。<code>CreateWebHostBuilder</code> 是一个 Convension。</p>
+<a id="more"></a>
+<h2 id="太长不读"><a href="#太长不读" class="headerlink" title="太长不读"></a>太长不读</h2><p>对于 <code>WebApplicationFactory&lt;T&gt;</code> 而言，默认情况下会采取如下假定：</p>
+<ul>
+<li><code>Startup</code> 所在的程序集应当就是应用程序入口（<code>Main</code>）所在的程序集；（官方工程模板的坑）</li>
+<li>应用程序入口所在的类（<code>Program</code>），里面会包含整个创建和配置 <code>IWebHostBuilder</code> 的过程；</li>
+<li>创建和配置 <code>IWebHostBuilder</code> 的过程是由应用程序入口所在类的 <code>CreateWebHostBuilder</code> 方法完成的。</li>
+</ul>
+<p>在满足上述假定的情况下，无需额外代码，Web 应用的执行和测试将共享相同的逻辑。如若不然，则测试失败。如果无法满足上述三种条件还可以通过集成 <code>WebApplicationFactory&lt;T&gt;</code> 并重写 <code>CreateWebHostBuilder</code> 方法来解决。</p>
+<p>以上约束仅仅限定于 <code>WebApplicationFactory&lt;T&gt;</code>，若直接在测试中使用 <code>TestServer</code> 则没有这种限制。</p>
+<p><code>WebApplicationFactory&lt;T&gt;</code> 的 <code>T</code> 并不是 <code>TStartup</code>，而是应用程序入口所在的程序集中的任意类型。</p>
+<h2 id="娓娓道来"><a href="#娓娓道来" class="headerlink" title="娓娓道来"></a>娓娓道来</h2><p>如果我们使用 dotnet 命令行创建一个 ASP.NET Core MVC/WebAPI 的工程。那么它的启动代码大概是这样的：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">class</span> <span class="title">Program</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">Main</span>(<span class="params"><span class="keyword">string</span>[] args</span>)</span></span><br><span class="line"><span class="function"></span>    &#123;</span><br><span class="line">        CreateWebHostBuilder(args).Build().Run();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> IWebHostBuilder <span class="title">CreateWebHostBuilder</span>(<span class="params"><span class="keyword">string</span>[] args</span>)</span></span><br><span class="line"><span class="function"></span>    &#123;</span><br><span class="line">        <span class="comment">// Modified a little bit for the sake of illustration</span></span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> WebHostBuilder()</span><br><span class="line">            .UseKestrel()</span><br><span class="line">            .ConfigureLogging(lb =&gt;</span><br><span class="line">            &#123;</span><br><span class="line">                lb.SetMinimumLevel(LogLevel.Debug).AddConsole();</span><br><span class="line">            &#125;)</span><br><span class="line">            .UseStartup&lt;Startup&gt;();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>有没有小伙伴好奇，为什么需要一个 <code>CreateWebHostBuilder</code> 方法？从直观上看，它是创建并完成基本的 <code>IWebHostBuilder</code> 配置的方法。这个方法应在测试中进行复用以确保测试和应用程序中的 <code>IWebHostBuilder</code> 配置几乎相同，例如：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[<span class="meta">Fact</span>]</span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">async</span> Task <span class="title">should_get_response_text</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    IWebHostBuilder webHostBuilder = Program.CreateWebHostBuilder(Array.Empty&lt;<span class="keyword">string</span>&gt;());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">using</span> (<span class="keyword">var</span> testServer = <span class="keyword">new</span> TestServer(webHostBuilder))</span><br><span class="line">    <span class="keyword">using</span> (HttpClient client = testServer.CreateClient())</span><br><span class="line">    &#123;</span><br><span class="line">        HttpResponseMessage response = <span class="keyword">await</span> client.GetAsync(<span class="string">"/message"</span>);</span><br><span class="line"></span><br><span class="line">        Assert.Equal(HttpStatusCode.OK, response.StatusCode);</span><br><span class="line">        Assert.Equal(<span class="string">"Hello"</span>, <span class="keyword">await</span> response.Content.ReadAsStringAsync());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这个测试是可以顺利通过的。但是我们认为将 <code>Program.CreateWebHostBuilder</code> 暴露并不是一个好的感觉。我们更希望把这个配置过程分离。例如分离到一个类中：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title">WebHostBuilderConfigurator</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> IWebHostBuilder <span class="title">Configure</span>(<span class="params">IWebHostBuilder webHostBuilder</span>)</span></span><br><span class="line"><span class="function"></span>    &#123;</span><br><span class="line">        <span class="keyword">return</span> webHostBuilder</span><br><span class="line">            .UseKestrel()</span><br><span class="line">            .ConfigureLogging(lb =&gt;</span><br><span class="line">            &#123;</span><br><span class="line">                lb.SetMinimumLevel(LogLevel.Debug).AddConsole();</span><br><span class="line">            &#125;)</span><br><span class="line">            .UseStartup&lt;Startup&gt;();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这样，<code>Program</code> 仅仅包含整个应用程序的入口，<code>CreateWebHostBuilder</code> 方法就被删掉了：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">Main</span>(<span class="params"><span class="keyword">string</span>[] args</span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">var</span> webHostBuilder = <span class="keyword">new</span> WebHostBuilder();</span><br><span class="line">    <span class="keyword">new</span> WebHostBuilderConfigurator().Configure(webHostBuilder).Build().Run();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>测试也就变成了：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[<span class="meta">Fact</span>]</span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">async</span> Task <span class="title">should_get_response_text</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    IWebHostBuilder webHostBuilder = <span class="keyword">new</span> WebHostBuilderConfigurator().Configure(<span class="keyword">new</span> WebHostBuilder());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">using</span> (<span class="keyword">var</span> testServer = <span class="keyword">new</span> TestServer(webHostBuilder))</span><br><span class="line">    <span class="keyword">using</span> (HttpClient client = testServer.CreateClient())</span><br><span class="line">    &#123;</span><br><span class="line">        HttpResponseMessage response = <span class="keyword">await</span> client.GetAsync(<span class="string">"/message"</span>);</span><br><span class="line"></span><br><span class="line">        Assert.Equal(HttpStatusCode.OK, response.StatusCode);</span><br><span class="line">        Assert.Equal(<span class="string">"Hello"</span>, <span class="keyword">await</span> response.Content.ReadAsStringAsync());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>看起来不错，测试也通过了真是可喜可贺。现在我们准备使用更加完善的 <code>WebApplicationFactory&lt;T&gt;</code> 代替 <code>TestServer</code> 进行测试：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[<span class="meta">Fact</span>]</span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">async</span> Task <span class="title">should_get_response_text_using_web_app_factory</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">using</span> (<span class="keyword">var</span> factory = <span class="keyword">new</span> WebApplicationFactory&lt;Startup&gt;().WithWebHostBuilder(</span><br><span class="line">        wb =&gt; <span class="keyword">new</span> WebHostBuilderConfigurator().Configure(wb)))</span><br><span class="line">    <span class="keyword">using</span> (HttpClient client = factory.CreateClient())</span><br><span class="line">    &#123;</span><br><span class="line">        HttpResponseMessage response = <span class="keyword">await</span> client.GetAsync(<span class="string">"/message"</span>);</span><br><span class="line"></span><br><span class="line">        Assert.Equal(HttpStatusCode.OK, response.StatusCode);</span><br><span class="line">        Assert.Equal(<span class="string">"Hello"</span>, <span class="keyword">await</span> response.Content.ReadAsStringAsync());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>看起来不错，但是发现测试运行的时候却失败了。并伴有诡异的异常信息：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">System.InvalidOperationException : No method &apos;public static IWebHostBuilder CreateWebHostBuilder(string[] args)&apos; found on &apos;WebApp.Program&apos;. Alternatively, WebApplicationFactory`1 can be extended and &apos;protected virtual IWebHostBuilder CreateWebHostBuilder()&apos; can be overridden to provide your own IWebHostBuilder instance.</span><br></pre></td></tr></table></figure>
+<p>哦，真神奇，它怎么找到 <code>WebApp.Program</code> 的？我只告诉了它 <code>Startup</code> 而并没有提供任何 <code>Program</code> 类型的信息啊？而这个时候，如果我们老老实实的恢复 <code>WebApp.Program</code> 类中的 <code>CreateWebHostBuilder</code> 方法，那么测试就顺利通过了。</p>
+<p>这是为什么呢？原来让测试环境尽可能的 Match 执行环境是我们共同的心愿，WebApplicationFactory<t> 希望能够自动的帮我们解决这个问题，于是它做了如下的假定：</t></p>
+<ul>
+<li><code>Startup</code> 所在的程序集应当就是应用程序入口（<code>Main</code>）所在的程序集；</li>
+<li>应用程序入口所在的类（<code>Program</code>），里面会包含整个创建和配置 <code>IWebHostBuilder</code> 的过程；</li>
+<li>创建和配置 <code>IWebHostBuilder</code> 的过程是由应用程序入口所在类的 <code>CreateWebHostBuilder</code> 方法完成的。</li>
+</ul>
+<p>只要符合这三个假定，那么你尽可不费吹灰之力就达到了产品测试配置一致的目的。而如果不符合这个假定将让测试在默认状态下执行失败。具体的代码请参考 <a href="https://github.com/aspnet/AspNetCore/blob/v2.2.1/src/Mvc/src/Microsoft.AspNetCore.Mvc.Testing/WebApplicationFactory.cs#L278" target="_blank" rel="noopener">这里</a> 和 <a href="https://github.com/aspnet/AspNetCore/blob/v2.2.1/src/Shared/Hosting.WebHostBuilderFactory/WebHostFactoryResolver.cs#L14" target="_blank" rel="noopener">这里</a>。从 <code>WebHostFactoryResolver</code> 里面可以看出，除了 <code>CreateWebHostBuilder</code> 方法之外，<code>BuildWebHost</code> 也是一个 Convension，只不过主要是为了向前兼容的目的。</p>
+<p>在真实的项目中，很可能是不满足这三个条件的，那么怎么办呢？还好我们可以通过集成 <code>WebApplicationFactory&lt;T&gt;</code> 并重写 <code>CreateWebHostBuilder</code> 方法来解决这个问题：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">public class MyWebApplicationFactory : WebApplicationFactory&lt;Startup&gt;</span><br><span class="line">&#123;</span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">override</span> IWebHostBuilder <span class="title">CreateWebHostBuilder</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function"></span>    &#123;</span><br><span class="line">        <span class="keyword">var</span> webHostBuilder = <span class="keyword">new</span> WebHostBuilder();</span><br><span class="line">        <span class="keyword">new</span> WebHostBuilderConfigurator().Configure(webHostBuilder);</span><br><span class="line">        <span class="keyword">return</span> webHostBuilder;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>并相应的将测试更改为：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">[<span class="meta">Fact</span>]</span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">async</span> Task <span class="title">should_get_response_text_using_web_app_factory</span>(<span class="params"></span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">using</span> (<span class="keyword">var</span> factory = <span class="keyword">new</span> MyWebApplicationFactory())</span><br><span class="line">    <span class="keyword">using</span> (HttpClient client = factory.CreateClient())</span><br><span class="line">    &#123;</span><br><span class="line">        HttpResponseMessage response = <span class="keyword">await</span> client.GetAsync(<span class="string">"/message"</span>);</span><br><span class="line"></span><br><span class="line">        Assert.Equal(HttpStatusCode.OK, response.StatusCode);</span><br><span class="line">        Assert.Equal(<span class="string">"Hello"</span>, <span class="keyword">await</span> response.Content.ReadAsStringAsync());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>就可以了。</p>
+<p>最后，需要提醒的是 <code>WebApplicationFactory&lt;T&gt;</code> 的 <code>T</code> 是 <code>TEntryPoint</code> ，是入口所在的程序集的类型。虽然平常大家都喜欢写 <code>Startup</code>。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>请飞到文章开头~ :-D</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/aspnetcore/">aspnetcore</a><a href="/tags/testing/">testing</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

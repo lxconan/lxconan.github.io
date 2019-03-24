@@ -1,0 +1,248 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="1pssZD9D7q">
+  
+  <title>ASP.NET Core 沉思录 - 环境的思考 | The CLR Daily | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="今天我们来一起思考一下如何在不同的环境应用不同的配置。这里的配置不仅仅指 IConfiguration 还包含 IWebHostBuilder 的创建过程和 Startup 的初始化过程。">
+  
+
+  
+  
+  <meta name="keywords" content="aspnetcore,environment">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="ASP.NET Core 沉思录 - 环境的思考">
+
+  <meta property="og:site_name" content="The CLR Daily">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The CLR Daily" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The CLR Daily</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>ASP.NET Core 沉思录 - 环境的思考</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2019/03/06/coremvc-determine-environment/" rel="bookmark">
+        <time class="entry-date published" datetime="2019-03-06T14:36:57.000Z">
+          2019-03-06
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>今天我们来一起思考一下如何在不同的环境应用不同的配置。这里的配置不仅仅指 <code>IConfiguration</code> 还包含 <code>IWebHostBuilder</code> 的创建过程和 <code>Startup</code> 的初始化过程。</p>
+<a id="more"></a>
+<h2 id="0-太长不读"><a href="#0-太长不读" class="headerlink" title="0 太长不读"></a>0 太长不读</h2><ul>
+<li>环境造成的差异在架构中基本体现在 Infrastructure 中的各个 Adapter 中。而不应当入侵应用程序内部</li>
+<li>在 ASP.NET Core 中我们需要考虑如何将这些 Adapter（一）放在 service collection 中 （二）（可选）添加到 pipeline 中。</li>
+<li>ASP.NET Core 默认提供了一系列手段来判断当前的环境，只不过这些手段的设计奇怪且不完整。</li>
+<li><code>IWebHostBuilder</code> 的配制方法大多和环境相关，但 <code>UseSetting</code> 和环境无关。</li>
+<li>我们应当应用开闭原则，将相同环境的配置聚合起来，不同环境的配置进行统一抽象。方便维护和扩展。</li>
+<li>当我们进行设计的时候，需要注意不要将思路局限在 Framework 的设计上，而应当切实考虑我们真正希望解决的问题。</li>
+</ul>
+<h2 id="1-架构层面的思考"><a href="#1-架构层面的思考" class="headerlink" title="1 架构层面的思考"></a>1 架构层面的思考</h2><p>Web Service 的开发和部署过程会涉及若干环境。总的来说可以分为开发环境和部署环境。而部署环境往往又分为 QA、Stage 和 Production 等。对于不同的环境，应用程序可能需要应用不同的配置或实现。还是回到架构的层面上，如下图：</p>
+<p><img src="/images/blog/core-mvc-architect.png" style="text-align:center" alt="clean architecture"></p>
+<p>那么这种不同应该体现在架构的哪一个层面上呢？应当让这些不同体现在 <em>Infrastructure</em> 的那些 <em>Adapters</em> 上。因为 <em>Adapter</em> 是其中直接和环境相关的部分。</p>
+<p>用一个典型的例子来表示。假定一个注册用户 Account 的业务。在 Application Service 层面，我们提供了如下的接口：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title">AccountRegistrationService</span> &#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> AccountRegistrationResult <span class="title">Register</span>(<span class="params">AccountRegistrationRequest request</span>)</span> &#123;</span><br><span class="line">        Account account = <span class="keyword">this</span>.repository.CreateDetached();</span><br><span class="line">        <span class="comment">// initialize account from request</span></span><br><span class="line">        account.Save();</span><br><span class="line">        <span class="keyword">return</span> AccountRegistrationResult.Create(account);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在 Domain 层面我们有代表领域对象 Account 的类型 <code>Account</code>。<code>Account</code> 类型的 Save() 方法可以保存账户信息，其中的实现类似：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title">Account</span> &#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">Save</span>(<span class="params"></span>)</span> &#123;</span><br><span class="line">        <span class="keyword">this</span>.repository.Save(<span class="keyword">this</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>而其中的 <code>repository</code> 则依赖 UnitOfWork 而 UnitOfWork 则可能依赖于具体的持久化实现或者依赖于其他远程服务：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title">AccountRepository</span> &#123;</span><br><span class="line">    <span class="keyword">readonly</span> IUnitOfWork session;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Account <span class="title">CreateDetached</span>(<span class="params"></span>)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> Account(<span class="keyword">this</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">Save</span>(<span class="params">Account account</span>)</span> &#123;</span><br><span class="line">        <span class="keyword">this</span>.session.RegisterNew(account);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在这个例子中，<code>AccountService</code> 属于 Application Service 层面，<code>Account</code> 和 <code>AccountRepository</code> 则属于 Domain 层面。这两层的依赖关系是 Application Service 依赖于 Domain。而 Domain 中的 <a href="https://martinfowler.com/eaaCatalog/unitOfWork.html" target="_blank" rel="noopener">UnitOfWork</a> 则是一个接口。假设我们需要将数据写入数据库。则这个接口的实现需要持久化的支持例如它需要使用特定的 <code>IDbConnection</code> （Adapter）。即 IUnitOfWork 的实现位于 Infrastructure 层，并在 Infrastructure 层调用 Adapter 向 DB 中写入信息。</p>
+<p>而对于不同的环境则可以使用不同的实现，例如，对于运行单元测试的环境，我们不妨叫她 Test 环境。这个 DB 很有可能是一个 in memory 的 SQLite 数据库。而在生产环境则是 MySQL 的集群。</p>
+<p>应用程序的内部逻辑最终全部依赖与特定的抽象或接口。它们全部严密的包裹在 Infrastructure 之中，并和外部环境完全隔离。而 Infrastructure 中的 Adapter 则负责联系外部环境。综上所述，环境相关的变化应当全部封闭在 Infrastructure 中。</p>
+<h2 id="2-ASP-NET-Core-中的对应关系"><a href="#2-ASP-NET-Core-中的对应关系" class="headerlink" title="2 ASP.NET Core 中的对应关系"></a>2 ASP.NET Core 中的对应关系</h2><p>ASP.NET Core 应用程序中的组件的初始化由两个部分构成，第一个部分就是将组件中的类型添加到依赖注入的 <code>IServiceCollection</code> 实例中，以便进行创建；第二个部分（可选）即将组件通过 <code>IApplicationBuilder</code> 添加到应用程序的处理流水线中。我们一个一个来思考。</p>
+<h3 id="2-1-依赖注入"><a href="#2-1-依赖注入" class="headerlink" title="2.1 依赖注入"></a>2.1 依赖注入</h3><p>ASP.NET Core Web Application 中用依赖注入来决定某种抽象的实现类型。但需要指出的是 ASP.NET 应用程序的依赖注入是分两个阶段进行的。（我们将在另外一篇中介绍），简单来说 ServiceCollection 的构建分为两个部分：</p>
+<ul>
+<li>为了构建宿主环境而添加的类型；（Infrastructure 层）</li>
+<li>为了应用程序本身而添加的 Framework（例如 MvC）和各种业务类型。（Infrastructure 层，Application + Domain 层）。</li>
+</ul>
+<p>而和环境相关的部分主要位于 “为了构建宿主环境而添加的类型” 中。这一部分的代码属于在 <code>IStartup</code> 初始化之前的 WebHostBuilder 构建代码中。一般来说，我们习惯于将 <code>UseStartup</code> 调用放在 <code>IWebHostBuilder</code> 实例创建的最后，那么也就是 <code>UseStartup</code> 之前的代码：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> IWebHostBuilder <span class="title">CreateWebHostBuilder</span>(<span class="params"><span class="keyword">string</span>[] args</span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> WebHostBuilder()</span><br><span class="line">        .UseKestrel()</span><br><span class="line">        .ConfigureLogging(...)</span><br><span class="line">        <span class="comment">//</span></span><br><span class="line">        <span class="comment">// The configurations before UseStartup are environment specific</span></span><br><span class="line">        <span class="comment">//</span></span><br><span class="line">        .UseStartup&lt;Startup&gt;();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="2-2-流水线"><a href="#2-2-流水线" class="headerlink" title="2.2 流水线"></a>2.2 流水线</h3><p>在流水线配置中主要考虑的是 Web 输入输出上的的变化。例如 Production 环境需要配置 SSL，消除敏感 Header，消除详细的 Error Information 等等。</p>
+<p>将组件配置到应用程序的流水线的操作是在 <code>IStartup</code> 接口的实现中进行的。定义 IStartup 接口实现的方式大体有两种，第一种是调用 <code>WebHostBuilderExtensions.Configure</code> 方法，另一种是使用 <code>WebHostBuilderExtensions.UseStartup</code> 方法。不论使用何种方式最终都会归结到对 <code>IApplicationBuilder</code> 的操作：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">Configure</span>(<span class="params">IApplicationBuilder app</span>)</span> &#123;</span><br><span class="line">    <span class="comment">// building pipeline</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在这个时候，宿主初始化相关的类型已经全部可以使用了。因此取用环境相关的信息（环境类型，配置等）就更方便了。</p>
+<h2 id="3-落地"><a href="#3-落地" class="headerlink" title="3 落地"></a>3 落地</h2><p>ASP.NET Core 对这个环节的设计很奇怪。一方面，它提供了非常底层的基于 <code>IHostingEnvironment.EnvironmentName</code> 的值来进行环境区分的方法。例如，官方范例中往往会使用如下的代码：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">new</span> WebHostBuilder()</span><br><span class="line">    .UseKestrel()</span><br><span class="line">    .ConfigureLogging((context, logBuilder) =&gt; &#123;</span><br><span class="line">        <span class="keyword">if</span> (context.HostingEnvironment.IsDevelopment()) &#123;</span><br><span class="line">            ...</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> <span class="keyword">if</span> (context.HostingEnvironment.IsProduction()) &#123;</span><br><span class="line">            ...</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> &#123;</span><br><span class="line">            ...</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;)</span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+<p>而另一方面却又在 <code>Startup</code> 上设计了命名的 Convension。例如：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title">DevelopmentStartup</span> &#123;&#125;     <span class="comment">// for Development</span></span><br><span class="line"><span class="keyword">class</span> <span class="title">ProductionStartup</span> &#123;&#125;      <span class="comment">// for Production</span></span><br><span class="line"><span class="keyword">class</span> <span class="title">Startup</span> &#123;&#125;                <span class="comment">// fallback</span></span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line">webHostBuilder.UseStartup(assemblyName);</span><br></pre></td></tr></table></figure>
+<p>又例如：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title">Startup</span>  &#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">ConfigureServices</span>(<span class="params">IServiceCollection services</span>)</span> &#123; &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">ConfigureStagingServices</span>(<span class="params">IServiceCollection services</span>)</span> &#123; &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">Configure</span>(<span class="params">IApplicationBuilder app, IHostingEnvironment env</span>)</span> &#123; &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">ConfigureStaging</span>(<span class="params">IApplicationBuilder app, IHostingEnvironment env</span>)</span> &#123; &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这些设计差异很大且每一个都不彻底。而在实际项目中环境属于一个扩展点；而每一套环境的各项配置应当是内聚的。因此上述几种方式或多或少会增加维护上的成本。而较好的设计应当针对如下三个问题：</p>
+<ul>
+<li>能够立刻说出，我的系统支持几种环境；</li>
+<li>每一种环境的各种类型的配置（例如，配置源、日志记录、HTTP Client、数据库）是什么样子的，有什么差异；</li>
+<li>能不能用两步添加一个新的环境：第一，一次性创建一个新环境的所有配置，第二，将这个环境纳入到系统初始化过程中。</li>
+</ul>
+<p>为了达到这个要求，需要考虑统一的实现手段。</p>
+<h3 id="3-1-在-WebHost-开始构建之前我们并不能确定环境信息"><a href="#3-1-在-WebHost-开始构建之前我们并不能确定环境信息" class="headerlink" title="3.1 在 WebHost 开始构建之前我们并不能确定环境信息"></a>3.1 在 WebHost 开始构建之前我们并不能确定环境信息</h3><p>一个最简单的想法就是根据不同的环境采取两种完全不同的 <code>WebHostBuilder</code> 配置流程。例如：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">WebHostBuilder builder = <span class="keyword">new</span> WebHostBuilderFactory().Create(env.EnvironmentName);</span><br></pre></td></tr></table></figure>
+<p>遗憾的是这种设计本身是有问题的。首先，若干环节都可以影响环境的最终确定，包括：</p>
+<ul>
+<li>当前 Session 的 <code>ASPNETCORE_ENVIRONMENT</code> 的值；（请参见 <a href="https://github.com/aspnet/AspNetCore/blob/master/src/Hosting/Hosting/src/WebHostBuilder.cs#L44" target="_blank" rel="noopener">这里</a>）</li>
+<li>Properties/launchSettings.json 中选定 Profile 中 <code>ASPNETCORE_ENVIRONMENT</code> 的值（如果用 <code>dotnet run</code> 命令执行的话）</li>
+<li><code>WebHostBuilder.UseEnvironment(name)</code> 的参数值；</li>
+<li><code>WebHostBuilder.UseSetting(key, value)</code> 当 <code>key</code> 为 <code>WebHostDefaults.EnvironmentKey</code> 时的值。</li>
+<li>若 Host 在 IIS 中，则 web.config 中关于 environmentVariable 的设置。</li>
+</ul>
+<p>因此只有在 <code>WebHostBuilder</code> 开始 <code>Build</code> 时，我们才可以最终确定环境名称。</p>
+<h3 id="3-2-UseSetting-并不是环境相关的"><a href="#3-2-UseSetting-并不是环境相关的" class="headerlink" title="3.2 UseSetting 并不是环境相关的"></a>3.2 <code>UseSetting</code> 并不是环境相关的</h3><p>另一种方案是包装 IWebHostBuilder 使其能够依据环境做出相应的 Dispatch。例如：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">abstract</span> <span class="keyword">class</span> <span class="title">EnvironmentAwareWebHostBuilder</span> : <span class="title">IWebHostBuilder</span> &#123;</span><br><span class="line">    IWebHostBuilder UnderlyingBuilder &#123; <span class="keyword">get</span>; &#125;</span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">abstract</span> <span class="keyword">bool</span> <span class="title">IsSupported</span>(<span class="params">IHostingEnvironment hostingEnvironment</span>)</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="title">EnvironmentAwareWebHostBuilder</span>(<span class="params">IWebHostBuilder underlyingBuilder</span>)</span></span><br><span class="line"><span class="function"></span>    &#123;</span><br><span class="line">        <span class="comment">// Validation omitted</span></span><br><span class="line">        UnderlyingBuilder = underlyingBuilder;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>从而我们可以分别为不同的环境进行相应的配置。以 <code>ConfigureService</code> 方法为例：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> IWebHostBuilder <span class="title">ConfigureServices</span>(<span class="params">Action&lt;IServiceCollection&gt; configureServices</span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    UnderlyingBuilder.ConfigureServices(</span><br><span class="line">        (context, services) =&gt;</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="keyword">if</span> (!IsSupported(context.HostingEnvironment)) &#123; <span class="keyword">return</span>; &#125;</span><br><span class="line"></span><br><span class="line">            configureServices(services);</span><br><span class="line">        &#125;);</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">this</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>按照上述方式包装 <code>ConfigureAppConfiguration</code>，这样就可以构造以下的扩展方法：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> IWebHostBuilder <span class="title">UseEnvironment</span>(<span class="params"></span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">this</span> IWebHostBuilder builder,</span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">string</span> environmentName, </span></span></span><br><span class="line"><span class="function"><span class="params">    Action&lt;IWebHostBuilder&gt; configureBuilder</span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">bool</span> <span class="title">IsEnvironmentSupported</span>(<span class="params">IHostingEnvironment h</span>)</span> =&gt; </span><br><span class="line">        h.IsEnvironment(config.environmentName);</span><br><span class="line"></span><br><span class="line">    EnvironmentAwareWebHostBuilder environmentAwareBuilder =</span><br><span class="line">        <span class="keyword">new</span> DelegatedWebHostBuilder(builder, IsEnvironmentSupported);</span><br><span class="line">    config.configureBuilder(environmentAwareBuilder);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> builder;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这种方案下的 <code>WebHostBuilder</code> 初始化逻辑就变成了：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">webHostBuilder</span><br><span class="line">    .UseEnvironment(<span class="string">"Development"</span>, wb =&gt; &#123;</span><br><span class="line">        wb</span><br><span class="line">            .ConfigureService((ctx, cb) =&gt; &#123; ... &#125;)</span><br><span class="line">            .ConfigureLogging((lb) =&gt; &#123; ... &#125;)</span><br><span class="line">            ...</span><br><span class="line">    &#125;)</span><br><span class="line">    .UseEnvironment(<span class="string">"Production"</span>, wb =&gt; &#123;</span><br><span class="line">        <span class="comment">// configure for production</span></span><br><span class="line">    &#125;);</span><br></pre></td></tr></table></figure>
+<p>这样我们至少就可以用若干扩展方法类将不同环境完全分开了。但是这个实现方案是有问题的：<code>UseSetting</code> 方法。<code>IWebHostBuilder</code> 所公开的方法中除了 <code>Build</code>、<code>ConfigureServices</code> 和 <code>ConfigureAppConfiguration</code> 之外还有第四个方法：<code>UseSetting</code>。和上述 <code>ConfigureXxx</code> 方法不同，<code>UseSetting</code> 方法执行完毕之后其影响马上生效，而且该方法无法根据不同的环境作出变化。即，如果我们使用了：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">webHostBuilder</span><br><span class="line">    .UseEnvironment(<span class="string">"Development"</span>, wb =&gt; wb.UseSetting(<span class="string">"Foo"</span>, <span class="string">"Bar"</span>))</span><br><span class="line">    .UseEnvironment(<span class="string">"Production"</span>, wb =&gt; wb.UseSetting(<span class="string">"Foo"</span>, <span class="string">"O_o"</span>));</span><br></pre></td></tr></table></figure>
+<p>且当前环境为 <code>Development</code> 则 <code>IConfiguration</code> 实例的 <code>&quot;Foo&quot;</code> 对应的值为 <code>&quot;O_o&quot;</code>。这就会造成混淆。</p>
+<h3 id="3-3-还是从扩展点来思考"><a href="#3-3-还是从扩展点来思考" class="headerlink" title="3.3 还是从扩展点来思考"></a>3.3 还是从扩展点来思考</h3><p>从第 2 节的论述中我们已经知道和环境相关的配置可能存在于宿主环境初始化过程中，也可能存在 <code>Startup</code> 初始化过程中（即 <code>WebHost.Run</code> 方法执行过程中）。因此我们必须综合考虑这两个部分，但是这个两个部分天生是不同的。那么强行进行统一也是不合适的。</p>
+<p>根据开闭原则，我们还是应该从扩展点上来考虑。首先我们能够确定我们的 Adapter 有哪些。又有哪一些 Adapter 是和环境相关的。例如我们和环境相关的 Adapter 有 DB，配置文件加载，日志记录，<code>HttpClient</code>（在非 <code>Development</code> 环境中我们可能需要进行客户端证书验证），在流水线创建过程中需要根据环境配置是否需要 HTTPS 强制跳转，需要配置错误信息的详细程度等等。在梳理好这些内容后我们就能有针对性的创建方法对各个部分进行配置了，我们可以使用工厂模式：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title">WebHostConfigureFactory</span> &#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> IWebHostConfigurator <span class="title">Create</span>(<span class="params"><span class="keyword">string</span> environmentName</span>)</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> cachedConfigurators[environmentName];</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>而每一个 <code>IWebHostConfigurator</code> 中都包含了所有的环境相关配置：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">interface</span> <span class="title">IWebHostConfigurator</span> &#123;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">AddDatabase</span>(<span class="params">IHostingEnvironment environment, IServiceCollection services</span>)</span>;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">LoadConfiguration</span>(<span class="params">IHostingEnvironment environment, IConfigurationBuilder configBuilder</span>)</span>;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">ConfigureLogging</span>(<span class="params">IHostingEnvironment environment, ILoggingBuilder loggingBuilder</span>)</span>;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">AddHttpClient</span>(<span class="params">IHostingEnvironment environment, IServiceCollection services</span>)</span>;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">ConfigureHttpsRedirection</span>(<span class="params">IHostingEnvironment environment, IConfiguration configuration, IApplicationBuilder builder</span>)</span>;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">ConfigureErrorHandler</span>(<span class="params">IHostingEnvironment environment,  IConfiguration configuration, IApplicationBuilder builder</span>)</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>而这样我们为各个环境的扩展点建立了抽象，从而统一配置过程：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">static</span> IWebHostBuilder <span class="title">CreateWebHostBuilder</span>(<span class="params"></span>)</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> WebHostBuilder()</span><br><span class="line">        .UseKestrel()</span><br><span class="line">        <span class="comment">//</span></span><br><span class="line">        <span class="comment">// Common configurations</span></span><br><span class="line">        <span class="comment">//</span></span><br><span class="line">        .ConfigureServices((context, services) =&gt; &#123;</span><br><span class="line">            IWebHostConfigurator configurator = factory.Create(context.HostingEnvironment.EnvironmentName);</span><br><span class="line"></span><br><span class="line">            configurator.AddDatabase(context.HostingEnvironment, services);</span><br><span class="line">            configurator.AddHttpClient(context.HostingEnvironment, services);</span><br><span class="line">        &#125;)</span><br><span class="line">        .ConfigureLogging((context, logBuilder) =&gt; &#123;</span><br><span class="line">            factory</span><br><span class="line">                .Create(context.HostingEnvironment.EnvironmentName)</span><br><span class="line">                .ConfigureLogging(context.HostingEnvironment, logBuilder);</span><br><span class="line">        &#125;)</span><br><span class="line">        .UseStartup&lt;Startup&gt;();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title">Startup</span> &#123;</span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">Configure</span>(<span class="params">IApplicationBuilder app</span>)</span> &#123;</span><br><span class="line">        IWebHostConfigurator configurator = factory.Create(hostingEnvironment.EnvironmentName);</span><br><span class="line">        configurator.ConfigureHttpsRedirection(hostingEnvironment, configuration, app);</span><br><span class="line">        configurator.ConfigureErrorHandler(hostingEnvironment, configuration, app);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// Common configurations</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="4-总结"><a href="#4-总结" class="headerlink" title="4 总结"></a>4 总结</h2><p>请跳到文章开头 :-D</p>
+<p>如果您觉得本文对您有帮助，也欢迎分享给其他的人。我们一起进步。欢迎关注我的微信公众号：</p>
+<p><img src="/images/blog/funny_csharp_barcode.jpeg" style="text-align:center" alt="wechat-app-barcode"></p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/aspnetcore/">aspnetcore</a><a href="/tags/environment/">environment</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

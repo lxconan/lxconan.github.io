@@ -1,0 +1,250 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="1pssZD9D7q">
+  
+  <title>ASP.NET Core 沉思录 - 结构化日志 | The CLR Daily | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="在 《ASP.NET Core 沉思录 - Logging 的两种介入方法》中我们介绍了 ASP.NET Core 中日志的基本设计结构。这一次我们来观察日志记录的格式，并进一步考虑如何在应用程序中根据不同的需求选择不同的日志记录形式。">
+  
+
+  
+  
+  <meta name="keywords" content="aspnetcore,logging">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="ASP.NET Core 沉思录 - 结构化日志">
+
+  <meta property="og:site_name" content="The CLR Daily">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The CLR Daily" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The CLR Daily</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>ASP.NET Core 沉思录 - 结构化日志</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2019/03/24/coremvc-structure-logging/" rel="bookmark">
+        <time class="entry-date published" datetime="2019-03-24T07:26:59.000Z">
+          2019-03-24
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>在 《ASP.NET Core 沉思录 - Logging 的两种介入方法》中我们介绍了 ASP.NET Core 中日志的基本设计结构。这一次我们来观察日志记录的格式，并进一步考虑如何在应用程序中根据不同的需求选择不同的日志记录形式。</p>
+<p><img src="/images/blog/core-mvc-logging-title-2.jpg" style="text-align:center" alt="write on hand"></p>
+<a id="more"></a>
+<p>太长不读：直接飞到文章最后 :-D</p>
+<h2 id="Microsoft-Extension-Logging-体系下的日志格式"><a href="#Microsoft-Extension-Logging-体系下的日志格式" class="headerlink" title="Microsoft.Extension.Logging 体系下的日志格式"></a>Microsoft.Extension.Logging 体系下的日志格式</h2><p>为了便于阅读，我们仍然将 <em>Microsoft.Extension.Logging</em> 的基本设计结构放在这里：</p>
+<p><img src="/images/blog/core-mvc-logger-struct.png" style="text-align:center" alt="logger structure"></p>
+<h3 id="奇怪的不合理之处"><a href="#奇怪的不合理之处" class="headerlink" title="奇怪的不合理之处"></a>奇怪的不合理之处</h3><blockquote>
+<p>注：所谓奇怪就是这种不合理是只是从某一种特定视角看的。</p>
+</blockquote>
+<p>对于记录日志而言，虽然一些具体的日志记录目标和记录的格式会有一些联系，但是日志记录的目标和日志记录的格式应该是两件事情。貌似 <em>Microsoft.Extension.Logging</em> 在此处进行了一些抽象。首先，日志具体的记录地点和记录格式全部由具体的 <code>ILoggerProvider</code> 创建的 <code>ILogger</code> 来完成。而对于日志的格式化方法，则使用 <code>ILogger.Log</code> 方法中的委托来完成。该委托中包含了一个 <code>formatter</code> 委托参数。该委托接收需要记录的对象，关联的异常实例并返回日志字符串。我们可以在其中定义自己的格式化逻辑。总结起来感觉是：</p>
+<ul>
+<li>特定的 <code>ILoggerProvider</code> 创建将日志记录到特定种类的目的地的日志记录器。例如，<code>ConsoleLogger</code>。</li>
+<li>指定 <code>ILogger.Log</code> 方法中的 <code>formatter</code> 参数对日志对象进行格式化。</li>
+</ul>
+<p><code>ILogger.Log</code> 方法除了 <code>formatter</code> 之外还包含如下的参数：</p>
+<ul>
+<li>logLevel：日志的级别。</li>
+<li>eventId：当前事件的标识。</li>
+<li>state：日志对象。</li>
+<li>exception：关联的异常对象。</li>
+</ul>
+<p>而 <code>formatter</code> 参数将使用其中的 <code>state</code> 参数和 <code>exception</code> 参数对日志进行格式化。这样通过替换 <code>formatter</code> 的逻辑就可以更改日志的形式了。例如，使用如下的逻辑就可以将 <code>state</code> 格式化为 JSON 形式：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Capture output so that we can assert its content</span></span><br><span class="line"><span class="keyword">var</span> writer = <span class="keyword">new</span> StringWriter();</span><br><span class="line">Console.SetOut(writer);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Normal initialization logic</span></span><br><span class="line"><span class="keyword">var</span> serviceCollection = <span class="keyword">new</span> ServiceCollection();</span><br><span class="line">serviceCollection.AddLogging(</span><br><span class="line">    config =&gt; config.SetMinimumLevel(LogLevel.Debug).AddConsole());</span><br><span class="line">ServiceProvider provider = serviceCollection.BuildServiceProvider();</span><br><span class="line"><span class="keyword">var</span> loggerFactory = provider.GetService&lt;ILoggerFactory&gt;();</span><br><span class="line"><span class="keyword">var</span> logger = loggerFactory.CreateLogger(<span class="string">"category"</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// Write log message</span></span><br><span class="line">logger.Log(</span><br><span class="line">    LogLevel.Information,</span><br><span class="line">    <span class="number">1</span>,</span><br><span class="line">    <span class="keyword">new</span> &#123;message = <span class="string">"Hello &#123;name&#125;"</span>, name = <span class="string">"World"</span>&#125;,</span><br><span class="line">    <span class="literal">null</span>,</span><br><span class="line">    (state, exception) =&gt; JsonConvert.SerializeObject(state));</span><br><span class="line"></span><br><span class="line"><span class="comment">// This is very important. The console logger using a async processor to consume</span></span><br><span class="line"><span class="comment">// the queued log message.</span></span><br><span class="line">Thread.Sleep(<span class="number">1000</span>);</span><br><span class="line"></span><br><span class="line">Assert.Equal(<span class="string">"...(omitted)..."</span>, writer.ToString())</span><br></pre></td></tr></table></figure>
+<p>如果您尝试了上述范例程序就会感到这个设计好像有问题，而如果联系整个 <em>Extension.Logging</em> 体系则感觉问题就更大了：</p>
+<ul>
+<li><code>formatter</code>只是解决了日志 message 部分的格式化问题，而无法影响其他信息的格式化，例如 <code>eventId</code>、<code>logLevel</code>、<code>exception</code> 等。</li>
+<li>我们根本不会用到具体的 <code>ILoggerProvider</code> 而是会使用 <code>ILoggerFactory</code> 提供的 <code>Logger</code> 门面。这个 <code>Logger</code> 是一个组合 <code>Logger</code>，也就是它会将 <code>ILogger&lt;&gt;.Log</code> 调用分发出来。但是我们很少使用 <code>ILogger&lt;&gt;.Log</code> 方法，而会使用扩展方法使用 template message 进行日志记录，这意味着所有的子 <code>ILogger</code> 实现都会接到同样的 <code>formatter</code>。自此，不同的目标采用不同的消息格式的理想破灭了。</li>
+</ul>
+<p>总结一下就是，日志的记录目标和日志的格式混合了起来。职责区分不清。message 的格式化职责交给了门面扩展方法；而另一部分格式化职责交给了具体的 <code>ILoggerProvider</code>。</p>
+<h3 id="从另一种视角看的合理之处"><a href="#从另一种视角看的合理之处" class="headerlink" title="从另一种视角看的合理之处"></a>从另一种视角看的合理之处</h3><p>我们换一个视角可能就会得到不一样的体验。首先我们更改分析问题的策略。从端到端的角度来思考问题。当我们记录日志的时候希望有哪几类信息呢？日志作为追踪一个事件的依据，应当能够清晰的说明这个事件。那么小学语文老师就告诉过我们，记录一件事情需要有：</p>
+<ul>
+<li>时间</li>
+<li>地点</li>
+<li>人物</li>
+<li>起因</li>
+<li>经过</li>
+<li>结果</li>
+</ul>
+<p>如果我们将这些信息归一归类，我们就可以得到这些信息：</p>
+<ul>
+<li>物理世界的环境参数：时间</li>
+<li>判断事件严重程度的依据：结果</li>
+<li>事件过程的上下文参数：地点（例如 URI 或代表某种操作的入口）、人物（例如谁进行的操作）、起因（例如方法调用参数）、经过（例如调用的那个方法）</li>
+</ul>
+<p>而要记录这些信息，则可以对应到程序中的以下几种形式的数据：</p>
+<ul>
+<li>物理世界的环境参数：例如 <code>DateTime</code>、<code>DateTimeOffset</code></li>
+<li>判断事件严重程度的依据：例如 <code>LogLevel</code></li>
+<li>事件过程上下文的参数：例如事件的类别 <code>CategoryName</code>；一个包含各种各样上下文参数的 <code>object[]</code> 对象；以及对人类友好，能够将这些参数串起来的消息模板。</li>
+</ul>
+<p>至此，你能够看到这些参数正是 <em>Microsoft.Extension.Logging</em> 中门面扩展方法中需要你来提供的参数。它本来也没有希望你调用 <code>ILogger.Log</code> 方法。而是希望你调用扩展方法用最舒服的方式达成日志记录的目的。</p>
+<p>而作为 <code>ILoggerProvider</code> 开发者，你并不一定必须得接受 <code>formatter</code> 生成的格式化后的日志消息。你可以选择处理每一个传入参数。具体的请参见 <code>FormattedLogValues</code> 类型的源代码。</p>
+<h3 id="阶段性总结"><a href="#阶段性总结" class="headerlink" title="阶段性总结"></a>阶段性总结</h3><ul>
+<li>日志记录和记叙文一样，只要满足了六要素就可以说清楚一件事情。而记录这六要素的形式正式 <em>Extension.Logging</em> 提供给我们的扩展方法的参数形式。</li>
+<li>分析问题从端到端分析是一种非常靠谱的分析方法。可以避免走弯路。</li>
+<li><code>ILogger</code> 的扩展方法负责生成日志消息，<code>ILoggerProvider</code> 和负责记录工作的 <code>ILogger</code> 实现负责格式化日志消息并将日志记录到特定的目标上去。</li>
+</ul>
+<h2 id="利用-SeriLog-实现灵活的日志记录形式"><a href="#利用-SeriLog-实现灵活的日志记录形式" class="headerlink" title="利用 SeriLog 实现灵活的日志记录形式"></a>利用 SeriLog 实现灵活的日志记录形式</h2><p>通过上述分析我们应该能够看到这种设计的合理性。但是不争的事实是 <code>ILoggerProvider</code> 一系包揽两种职能，并没有进一步抽象，有没有人来对日志记录的目标和日志记录的整体格式进行抽象呢？有！那就是被千万人喜爱的 <code>SeriLog</code>。它在 <code>ILoggerProvider</code> 一级商抽象了 <code>ITextFormatter</code> 解决了这个问题：</p>
+<blockquote>
+<p>我在这里不会介绍 SeriLog 的具体使用方法。网上教程一大堆大家去搜搜好了。我建议直接去官网。</p>
+</blockquote>
+<p>例如，我可以将日志记录到 Console 中，默认情况下，这种日志的格式是给人看的：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// normal initialization logic</span></span><br><span class="line"><span class="keyword">var</span> serviceCollection = <span class="keyword">new</span> ServiceCollection();</span><br><span class="line">serviceCollection.AddLogging(b =&gt;</span><br><span class="line">&#123;</span><br><span class="line">    Logger seriLogger = <span class="keyword">new</span> LoggerConfiguration()</span><br><span class="line">        .WriteTo.Console()</span><br><span class="line">        .MinimumLevel.Debug()</span><br><span class="line">        .CreateLogger();</span><br><span class="line"></span><br><span class="line">    b.AddSerilog(seriLogger);</span><br><span class="line">&#125;);</span><br><span class="line">ServiceProvider provider = serviceCollection.BuildServiceProvider();</span><br><span class="line"></span><br><span class="line"><span class="comment">// create logger</span></span><br><span class="line"><span class="keyword">var</span> loggerFactory = provider.GetService&lt;ILoggerFactory&gt;();</span><br><span class="line"><span class="keyword">var</span> logger = loggerFactory.CreateLogger(<span class="string">"category"</span>);</span><br><span class="line"></span><br><span class="line"><span class="comment">// write log</span></span><br><span class="line">logger.LogInformation(<span class="string">"Hello &#123;name&#125;"</span>, <span class="string">"world"</span>);</span><br></pre></td></tr></table></figure>
+<p>此时屏幕上会输出高亮版的，适于阅读的日志，类似这样：</p>
+<blockquote>
+<p>[18:41:27 INF] Hello <strong>world</strong></p>
+</blockquote>
+<p>但是如果希望使用其他的格式，则可以通过 <code>ITextFormatter</code> 快速的转换格式：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> serviceCollection = <span class="keyword">new</span> ServiceCollection();</span><br><span class="line">serviceCollection.AddLogging(b =&gt;</span><br><span class="line">&#123;</span><br><span class="line">    Logger seriLogger = <span class="keyword">new</span> LoggerConfiguration()</span><br><span class="line">        <span class="comment">// PLEASE NOTE that we use JsonFormatter as input paramter</span></span><br><span class="line">        .WriteTo.Console(<span class="keyword">new</span> JsonFormatter())</span><br><span class="line">        .MinimumLevel.Debug()</span><br><span class="line">        .CreateLogger();</span><br><span class="line"></span><br><span class="line">    b.AddSerilog(seriLogger);</span><br><span class="line">&#125;);</span><br><span class="line"></span><br><span class="line">ServiceProvider provider = serviceCollection.BuildServiceProvider();</span><br><span class="line"></span><br><span class="line"><span class="keyword">var</span> loggerFactory = provider.GetService&lt;ILoggerFactory&gt;();</span><br><span class="line"><span class="keyword">var</span> logger = loggerFactory.CreateLogger(<span class="string">"category"</span>);</span><br><span class="line"></span><br><span class="line">logger.LogInformation(<span class="string">"Hello &#123;name&#125;"</span>, <span class="string">"world"</span>);</span><br></pre></td></tr></table></figure>
+<p>这样就会得到以下的日志：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="attr">"Timestamp"</span>:<span class="string">"2019-03-24T19:38:54.4833240+08:00"</span>,</span><br><span class="line">    <span class="attr">"Level"</span>:<span class="string">"Information"</span>,</span><br><span class="line">    <span class="attr">"MessageTemplate"</span>:<span class="string">"Hello &#123;name&#125;"</span>,</span><br><span class="line">    <span class="attr">"Properties"</span>:&#123;<span class="attr">"name"</span>:<span class="string">"world"</span>,<span class="attr">"SourceContext"</span>:<span class="string">"category"</span>&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如果还需要 <code>formatter</code> 格式化之后的完整消息，可以在创建 <code>JsonFormatter</code> 时指定 <code>new JsonFormatter(renderMessage: true)</code> 这样就会得到包含完整可读消息的结果：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    <span class="attr">"Timestamp"</span>:<span class="string">"2019-03-24T19:44:51.0430260+08:00"</span>,</span><br><span class="line">    <span class="attr">"Level"</span>:<span class="string">"Information"</span>,</span><br><span class="line">    <span class="attr">"MessageTemplate"</span>:<span class="string">"Hello &#123;name&#125;"</span>,</span><br><span class="line">    <span class="attr">"RenderedMessage"</span>:<span class="string">"Hello \"world\""</span>,</span><br><span class="line">    <span class="attr">"Properties"</span>:&#123;<span class="attr">"name"</span>:<span class="string">"world"</span>,<span class="attr">"SourceContext"</span>:<span class="string">"category"</span>&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这样，在实际的操作中。我们可以直接使用 <em>Microsoft.Extension.Logging</em> 默认体系对 <code>ILoggerProvider</code> 进行扩展达到对记录目标和记录格式的控制；也可以将其与 SeriLog 集成。通过 Sink 和 <code>ITextFormatter</code> 组合的方式分别对记录目标和记录格式进行控制。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>一图胜千言：</p>
+<p><img src="/images/blog/core-mvc-logger-default.png" style="text-align:center" alt="logger structure default"></p>
+<p>图-1 <em>默认 Microsoft.Extension.Logging 类型及信息传递路径</em></p>
+<p><img src="/images/blog/core-mvc-logger-serilog.png" style="text-align:center" alt="logger structure serilog"></p>
+<p>图-2 <em>集成 SeriLog 后类型及信息传递路径</em></p>
+<p>如果您觉得本文对您有帮助，也欢迎分享给其他的人。我们一起进步。欢迎关注我的微信公众号：</p>
+<p><img src="/images/blog/funny_csharp_barcode.jpeg" style="text-align:center" alt="wechat-app-barcode"></p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/aspnetcore/">aspnetcore</a><a href="/tags/logging/">logging</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="baidu-site-verification" content="1pssZD9D7q">
   
-  <title>The Coding Life | A world for dotnet and beyond</title>
+  <title>The CLR Daily | A world for dotnet and beyond</title>
 
   
   <meta name="author" content="Liu Xia">
@@ -20,14 +20,14 @@
 
   
 
-  <meta property="og:site_name" content="The Coding Life">
+  <meta property="og:site_name" content="The CLR Daily">
 
   
   <meta property="og:image" content="/favicon.ico">
   
 
   <link href="/favicon.ico" rel="icon">
-  <link rel="alternate" href="/atom.xml" title="The Coding Life" type="application/atom+xml">
+  <link rel="alternate" href="/atom.xml" title="The CLR Daily" type="application/atom+xml">
   <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
 </head>
 
@@ -39,7 +39,7 @@
     <header>
   <div class="site-branding">
     <h1 class="site-title">
-      <a href="/">The Coding Life</a>
+      <a href="/">The CLR Daily</a>
     </h1>
     <p class="site-description">A world for dotnet and beyond</p>
   </div>
@@ -56,6 +56,252 @@
 
     <main class="site-main posts-loop">
     
+  <article>
+
+  
+    
+    <h3 class="article-title"><a href="/2019/03/24/coremvc-structure-logging/"><span>ASP.NET Core 沉思录 - 结构化日志</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2019/03/24/coremvc-structure-logging/" rel="bookmark">
+        <time class="entry-date published" datetime="2019-03-24T07:26:59.000Z">
+          2019-03-24
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>在 《ASP.NET Core 沉思录 - Logging 的两种介入方法》中我们介绍了 ASP.NET Core 中日志的基本设计结构。这一次我们来观察日志记录的格式，并进一步考虑如何在应用程序中根据不同的需求选择不同的日志记录形式。</p>
+<p><img src="/images/blog/core-mvc-logging-title-2.jpg" style="text-align:center" alt="write on hand"></p>
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/aspnetcore/">aspnetcore</a><a href="/tags/logging/">logging</a>
+    </span>
+    
+
+    </div>
+
+    
+    <div class="article-meta pull-right">
+      <span>
+        <i class="icon-comments"></i>
+        <span>
+          <a href="/2019/03/24/coremvc-structure-logging/#comment">评论</a>
+        </span>
+      </span>
+    </div>
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
+    <h3 class="article-title"><a href="/2019/03/19/coremvc-logging-structure/"><span>ASP.NET Core 沉思录 - Logging 的两种介入方法</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2019/03/19/coremvc-logging-structure/" rel="bookmark">
+        <time class="entry-date published" datetime="2019-03-19T12:00:33.000Z">
+          2019-03-19
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>ASP.NET Core 中依赖注入是一个很重要的环节。因为几乎所有的对象都是由它创建的（相关文章请参见《ASP.NET Core 沉思录 - ServiceProvider 的二度出生》）。因此整个日志记录的相关类型也被直接添加到了 <code>IServiceCollection</code> 中。今天我们将介绍各个接口/类型之间的关系，并找到介入日志记录功能的两个主要的入口。</p>
+<p><img src="/images/blog/coremvc-logger.jpg" style="text-align:center" alt="wechat-app-barcode"></p>
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/aspnetcore/">aspnetcore</a><a href="/tags/dependency-injection/">dependency injection</a><a href="/tags/logging/">logging</a>
+    </span>
+    
+
+    </div>
+
+    
+    <div class="article-meta pull-right">
+      <span>
+        <i class="icon-comments"></i>
+        <span>
+          <a href="/2019/03/19/coremvc-logging-structure/#comment">评论</a>
+        </span>
+      </span>
+    </div>
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
+    <h3 class="article-title"><a href="/2019/03/11/coremvc-double-step-service-provider/"><span>ASP.NET Core 沉思录 - ServiceProvider 的二度出生</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2019/03/11/coremvc-double-step-service-provider/" rel="bookmark">
+        <time class="entry-date published" datetime="2019-03-11T02:19:23.000Z">
+          2019-03-11
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>ASP.NET Core 终于将几乎所有的对象创建工作都和依赖注入框架集成了起来。并对大部分的日常工作进行了抽象。使得整个框架扩展更加方便。各个部分的集成也更加容易。今天我们要思考的部分仍然是从一段每一个工程中都大同小异的代码开始的。</p>
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/aspnetcore/">aspnetcore</a><a href="/tags/dependency-injection/">dependency injection</a>
+    </span>
+    
+
+    </div>
+
+    
+    <div class="article-meta pull-right">
+      <span>
+        <i class="icon-comments"></i>
+        <span>
+          <a href="/2019/03/11/coremvc-double-step-service-provider/#comment">评论</a>
+        </span>
+      </span>
+    </div>
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
+    <h3 class="article-title"><a href="/2019/03/06/coremvc-determine-environment/"><span>ASP.NET Core 沉思录 - 环境的思考</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2019/03/06/coremvc-determine-environment/" rel="bookmark">
+        <time class="entry-date published" datetime="2019-03-06T14:36:57.000Z">
+          2019-03-06
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>今天我们来一起思考一下如何在不同的环境应用不同的配置。这里的配置不仅仅指 <code>IConfiguration</code> 还包含 <code>IWebHostBuilder</code> 的创建过程和 <code>Startup</code> 的初始化过程。</p>
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/aspnetcore/">aspnetcore</a><a href="/tags/environment/">environment</a>
+    </span>
+    
+
+    </div>
+
+    
+    <div class="article-meta pull-right">
+      <span>
+        <i class="icon-comments"></i>
+        <span>
+          <a href="/2019/03/06/coremvc-determine-environment/#comment">评论</a>
+        </span>
+      </span>
+    </div>
+    
+  </div>
+</article>
+
+
+
   <article>
 
   
@@ -414,252 +660,6 @@
         <i class="icon-comments"></i>
         <span>
           <a href="/2018/06/11/funny-csharp-interface-variance-2/#comment">评论</a>
-        </span>
-      </span>
-    </div>
-    
-  </div>
-</article>
-
-
-
-  <article>
-
-  
-    
-    <h3 class="article-title"><a href="/2018/06/10/funny-csharp-variance-interface/"><span>【我好像遇到了假的 C#】2018年06月10日--variance</span></a></h3>
-    
-  
-
-  <div class="article-top-meta">
-    <span class="posted-on">
-      <a href="/2018/06/10/funny-csharp-variance-interface/" rel="bookmark">
-        <time class="entry-date published" datetime="2018-06-10T14:55:05.000Z">
-          2018-06-10
-        </time>
-      </a>
-    </span>
-  </div>
-
-
-  
-
-  <div class="article-content">
-    <div class="entry">
-      
-        <p>Hello 大家好。北京今天下雨了，气温从 35 度降到了 20 度，感觉舒适了不少。明天估计会有不少同学趁着凉爽出门吧。出门前也别忘了用 5 分钟看段子哦。我们先来回顾一下上一次的脑筋急转弯吧：</p>
-      
-    </div>
-
-  </div>
-
-  <div class="article-footer">
-    <div class="article-meta pull-left">
-
-    
-
-    
-    
-
-    <span class="post-tags">
-      <i class="icon-tags"></i>
-        <a href="/tags/csharp/">csharp</a><a href="/tags/variance/">variance</a><a href="/tags/interface/">interface</a>
-    </span>
-    
-
-    </div>
-
-    
-    <div class="article-meta pull-right">
-      <span>
-        <i class="icon-comments"></i>
-        <span>
-          <a href="/2018/06/10/funny-csharp-variance-interface/#comment">评论</a>
-        </span>
-      </span>
-    </div>
-    
-  </div>
-</article>
-
-
-
-  <article>
-
-  
-    
-    <h3 class="article-title"><a href="/2018/06/08/funny-csharp-array-variance/"><span>【我好像遇到了假的 C#】2018年06月08日--variance</span></a></h3>
-    
-  
-
-  <div class="article-top-meta">
-    <span class="posted-on">
-      <a href="/2018/06/08/funny-csharp-array-variance/" rel="bookmark">
-        <time class="entry-date published" datetime="2018-06-07T17:12:42.000Z">
-          2018-06-08
-        </time>
-      </a>
-    </span>
-  </div>
-
-
-  
-
-  <div class="article-content">
-    <div class="entry">
-      
-        <p>Hello，大家好，现在 Infrastructure 已经搞定了。终于可以安心的更新了。我们先来回顾一下上一期的问题。然后我们会带来一个脑筋急转弯似的新问题：</p>
-      
-    </div>
-
-  </div>
-
-  <div class="article-footer">
-    <div class="article-meta pull-left">
-
-    
-
-    
-    
-
-    <span class="post-tags">
-      <i class="icon-tags"></i>
-        <a href="/tags/csharp/">csharp</a><a href="/tags/array/">array</a><a href="/tags/variance/">variance</a>
-    </span>
-    
-
-    </div>
-
-    
-    <div class="article-meta pull-right">
-      <span>
-        <i class="icon-comments"></i>
-        <span>
-          <a href="/2018/06/08/funny-csharp-array-variance/#comment">评论</a>
-        </span>
-      </span>
-    </div>
-    
-  </div>
-</article>
-
-
-
-  <article>
-
-  
-    
-    <h3 class="article-title"><a href="/2018/06/06/funny-csharp-interface-2/"><span>【我好像遇到了假的 C#】2018年06月06日--interface</span></a></h3>
-    
-  
-
-  <div class="article-top-meta">
-    <span class="posted-on">
-      <a href="/2018/06/06/funny-csharp-interface-2/" rel="bookmark">
-        <time class="entry-date published" datetime="2018-06-05T16:55:35.000Z">
-          2018-06-06
-        </time>
-      </a>
-    </span>
-  </div>
-
-
-  
-
-  <div class="article-content">
-    <div class="entry">
-      
-        <p>Hello 大家好，经过了周二的电视台休息。我们周三的更新又来了。首先我们来回顾一下上一期的问题。</p>
-<h2 id="上一期的问题解答"><a href="#上一期的问题解答" class="headerlink" title="上一期的问题解答"></a>上一期的问题解答</h2><p>在上一期我们放飞了自我，变成了一只有点儿复杂的鹦鹉。而其中的点主要就是在接口的实现上。（警告：接下来的过程，可能有些绕，有些让人难过😣）</p>
-      
-    </div>
-
-  </div>
-
-  <div class="article-footer">
-    <div class="article-meta pull-left">
-
-    
-
-    
-    
-
-    <span class="post-tags">
-      <i class="icon-tags"></i>
-        <a href="/tags/csharp/">csharp</a><a href="/tags/interface/">interface</a><a href="/tags/polymorphism/">polymorphism</a>
-    </span>
-    
-
-    </div>
-
-    
-    <div class="article-meta pull-right">
-      <span>
-        <i class="icon-comments"></i>
-        <span>
-          <a href="/2018/06/06/funny-csharp-interface-2/#comment">评论</a>
-        </span>
-      </span>
-    </div>
-    
-  </div>
-</article>
-
-
-
-  <article>
-
-  
-    
-    <h3 class="article-title"><a href="/2018/06/04/funny-csharp-interface/"><span>【我好像遇到了假的 C#】2018年06月04日--interface</span></a></h3>
-    
-  
-
-  <div class="article-top-meta">
-    <span class="posted-on">
-      <a href="/2018/06/04/funny-csharp-interface/" rel="bookmark">
-        <time class="entry-date published" datetime="2018-06-03T16:48:13.000Z">
-          2018-06-04
-        </time>
-      </a>
-    </span>
-  </div>
-
-
-  
-
-  <div class="article-content">
-    <div class="entry">
-      
-        <p>Hello，大家好，又见面了。不知道什么时候才能添加评论~嗯，所以，有事儿可以知乎（<a href="https://www.zhihu.com/people/liu-xia-80/activities）" target="_blank" rel="noopener">https://www.zhihu.com/people/liu-xia-80/activities）</a> 上找，但是我也不能保证及时回复~x_x。</p>
-<p>我们还是先来看看上一期的问题吧。</p>
-      
-    </div>
-
-  </div>
-
-  <div class="article-footer">
-    <div class="article-meta pull-left">
-
-    
-
-    
-    
-
-    <span class="post-tags">
-      <i class="icon-tags"></i>
-        <a href="/tags/csharp/">csharp</a><a href="/tags/interface/">interface</a><a href="/tags/polymorphism/">polymorphism</a>
-    </span>
-    
-
-    </div>
-
-    
-    <div class="article-meta pull-right">
-      <span>
-        <i class="icon-comments"></i>
-        <span>
-          <a href="/2018/06/04/funny-csharp-interface/#comment">评论</a>
         </span>
       </span>
     </div>

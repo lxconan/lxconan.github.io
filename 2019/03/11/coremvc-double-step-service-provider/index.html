@@ -1,0 +1,218 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="1pssZD9D7q">
+  
+  <title>ASP.NET Core 沉思录 - ServiceProvider 的二度出生 | The CLR Daily | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="ASP.NET Core 终于将几乎所有的对象创建工作都和依赖注入框架集成了起来。并对大部分的日常工作进行了抽象。使得整个框架扩展更加方便。各个部分的集成也更加容易。今天我们要思考的部分仍然是从一段每一个工程中都大同小异的代码开始的。">
+  
+
+  
+  
+  <meta name="keywords" content="aspnetcore,dependency injection">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="ASP.NET Core 沉思录 - ServiceProvider 的二度出生">
+
+  <meta property="og:site_name" content="The CLR Daily">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The CLR Daily" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The CLR Daily</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>ASP.NET Core 沉思录 - ServiceProvider 的二度出生</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2019/03/11/coremvc-double-step-service-provider/" rel="bookmark">
+        <time class="entry-date published" datetime="2019-03-11T02:19:23.000Z">
+          2019-03-11
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>ASP.NET Core 终于将几乎所有的对象创建工作都和依赖注入框架集成了起来。并对大部分的日常工作进行了抽象。使得整个框架扩展更加方便。各个部分的集成也更加容易。今天我们要思考的部分仍然是从一段每一个工程中都大同小异的代码开始的。</p>
+<a id="more"></a>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">IWebHostBuilder <span class="title">CreateWebHostBuilder</span>(<span class="params"><span class="keyword">string</span>[] args</span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> WebHostBuilder()</span><br><span class="line">        .UseKestrel(ko =&gt; ko.AddServerHeader = <span class="literal">false</span>)</span><br><span class="line">        .ConfigureAppConfiguration(cb =&gt; cb.AddCommandLine(args))</span><br><span class="line">        .ConfigureLogging(lb =&gt; &#123;...&#125;)</span><br><span class="line">        .UseStartup&lt;Startup&gt;();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2 id="0-太长不读"><a href="#0-太长不读" class="headerlink" title="0 太长不读"></a>0 太长不读</h2><p><img src="/images/blog/core-mvc-service-providers.jpg" style="text-align:center" alt="service-providers"></p>
+<ul>
+<li>ASP.NET Core 的初始化包含了两个步骤：第一个步骤是 Hosting 相关服务的初始化过程，初始化完毕之后创建了第一个 <code>IServiceProvider</code> 对象；第二步是 Application 相关服务的初始化过程。而 Application 的初始化过程可以注入 Hosting 相关的服务。之后，通过 <code>IStartup.ConfigureServices</code> 方法创建了第二个 <code>IServiceProvider</code> 对象。</li>
+<li>初始化过程中创建的两个 <code>IServiceProvider</code> 均会跟随 <code>WebHost</code> 的销毁而销毁。</li>
+<li>通过 <code>Startup</code> 类型的构造函数注入的实例是由 Hosting 初始化阶段创建的 <code>IServiceProvider</code> 创建的。只能注入 Hosting 初始化阶段添加的类型。且最好不要使用大量消耗资源的类型。</li>
+<li>可以在 <code>Startup.Configure</code> 方法中添加其他参数，这样会使用 Application 的一个 <code>Scope</code> 下的 <code>IServiceProvider</code> 进行注入，且在方法调用完毕之后该 <code>Scope</code> 即被销毁。因此该方法内可以创建资源占用量较高的需要 <code>Dispose</code> 的类型实例而不造成泄露。</li>
+</ul>
+<h2 id="1-WebHost-的构建主要就是向-IServiceCollection-中添加服务"><a href="#1-WebHost-的构建主要就是向-IServiceCollection-中添加服务" class="headerlink" title="1 WebHost 的构建主要就是向 IServiceCollection 中添加服务"></a>1 WebHost 的构建主要就是向 <code>IServiceCollection</code> 中添加服务</h2><p>之前提到过，任何 Framework 只有两件事情，第一件事情就是对象怎么创建，第二件事情就是如何将这些创建出来的对象塞到 Framework 处理流水线中。因此 ASP.NET Core 也是这样。在应用程序启动的时候，我们会在 <code>WebHostBuilder.Build</code> 方法调用之前进行各种各样的操作，虽然我们调用的大部分操作都是扩展方法（例如上述代码中的 <code>UseXxx</code>，和 <code>ConfigureLogging</code>），但是归根结底会调用 <code>IWebHostBuilder</code> 的以下方法：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">IWebHostBuilder <span class="title">ConfigureAppConfiguration</span>(<span class="params">Action&lt;WebHostBuilderContext, IConfigurationBuilder&gt; configureDelegate</span>)</span>;</span><br><span class="line"><span class="function">IWebHostBuilder <span class="title">ConfigureServices</span>(<span class="params">Action&lt;IServiceCollection&gt; configureServices</span>)</span>;</span><br><span class="line"><span class="function">IWebHostBuilder <span class="title">ConfigureServices</span>(<span class="params">Action&lt;WebHostBuilderContext, IServiceCollection&gt; configureServices</span>)</span>;</span><br></pre></td></tr></table></figure>
+<p>不论调哪一个方法，它们做的事情其实都是一件。就是告诉应用程序，我到底有哪些对象需要创建，如何创建这些对象，以及其生存期如何管理。从技术角度上来说，就是将需要创建的对象类型添加到 <code>IServiceCollection</code> 中。如果感兴趣的同学可以看看 <code>WebHostBuilder</code> 的<a href="https://github.com/aspnet/AspNetCore/blob/master/src/Hosting/Hosting/src/WebHostBuilder.cs" target="_blank" rel="noopener">实现代码</a>，就更加清晰了。</p>
+<p>例如，以 <code>ConfigureLogging</code> 为例，代码请参见<a href="https://github.com/aspnet/Extensions/blob/master/src/Logging/Logging/src/LoggingServiceCollectionExtensions.cs" target="_blank" rel="noopener">这里</a>：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> IWebHostBuilder <span class="title">ConfigureLogging</span>(<span class="params"></span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">this</span> IWebHostBuilder hostBuilder, Action&lt;WebHostBuilderContext, </span></span></span><br><span class="line"><span class="function"><span class="params">    ILoggingBuilder&gt; configureLogging</span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">return</span> hostBuilder.ConfigureServices((context, collection) =&gt; </span><br><span class="line">        collection.AddLogging(builder =&gt; configureLogging(context, builder)));</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> IServiceCollection <span class="title">AddLogging</span>(<span class="params"></span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">this</span> IServiceCollection services, </span></span></span><br><span class="line"><span class="function"><span class="params">    Action&lt;ILoggingBuilder&gt; configure</span>)</span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (services == <span class="literal">null</span>) &#123; <span class="keyword">throw</span> <span class="keyword">new</span> ArgumentNullException(<span class="keyword">nameof</span>(services)); &#125;</span><br><span class="line"></span><br><span class="line">    services.AddOptions();</span><br><span class="line">    services.TryAdd(ServiceDescriptor.Singleton&lt;ILoggerFactory, LoggerFactory&gt;());</span><br><span class="line">    services.TryAdd(ServiceDescriptor.Singleton(<span class="keyword">typeof</span>(ILogger&lt;&gt;), <span class="keyword">typeof</span>(Logger&lt;&gt;)));</span><br><span class="line">    services.TryAddEnumerable(ServiceDescriptor.Singleton&lt;IConfigureOptions&lt;LoggerFilterOptions&gt;&gt;(</span><br><span class="line">        <span class="keyword">new</span> DefaultLoggerLevelConfigureOptions(LogLevel.Information)));</span><br><span class="line">    configure(<span class="keyword">new</span> LoggingBuilder(services));</span><br><span class="line">    <span class="keyword">return</span> services;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到实际上就是将 <code>IOptions&lt;&gt;</code>、<code>IOptionsSnapshot&lt;&gt;</code>、<code>IOptionsMonitor&lt;&gt;</code>、<code>IOptionsFactory&lt;&gt;</code>、<code>IOptionsMonitorCache&lt;&gt;</code> 以及 <code>ILoggerFactory</code>、<code>ILogger&lt;&gt;</code>、<code>IConfigureOptions&lt;LoggerFilterOptions&gt;</code> 添加到 <code>IServiceCollection</code> 中的过程。有关日志的内容我们会在另一篇文章中介绍。</p>
+<h2 id="2-Startup-初始化时为什么又能注入又有-IServiceCollection-呢"><a href="#2-Startup-初始化时为什么又能注入又有-IServiceCollection-呢" class="headerlink" title="2 Startup 初始化时为什么又能注入又有 IServiceCollection 呢"></a>2 Startup 初始化时为什么又能注入又有 <code>IServiceCollection</code> 呢</h2><p>在 <code>WebHost</code> 的构建过程中，十有八九会出现 <code>UseStartup</code> 这句话（如果不出现这句话，那么很大程度上使用了 <code>Configure</code> 扩展方法）。<code>Startup</code> 是整个 Web 应用程序的起点。应用程序（Web App）托管在宿主（Hosting Environment）中。那么它应当是在初始化的最终阶段执行的。我们来观察一下它的典型结构：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title">Startup</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">ConfigureServices</span>(<span class="params">IServiceCollection services</span>)</span></span><br><span class="line"><span class="function"></span>    &#123;</span><br><span class="line">        <span class="comment">// Add application related services to service collection.</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">Configure</span>(<span class="params">IApplicationBuilder app, IHostingEnvironment env</span>)</span></span><br><span class="line"><span class="function"></span>    &#123;</span><br><span class="line">        <span class="comment">// Create application pipeline. We will not focus on this method.</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如果单纯观察上述代码那么并没有任何的稀奇之处。<code>ConfigureServices</code> 方法将应用需要的类型全部添加到 <code>IServiceCollection</code> 实例中，而 <code>Configure</code> 来构建 Pipeline（我们此次不讨论该方法）。但是如果我们需要记录日志，读取配置文件，在应用程序生命周期事件中注册新的处理方法时，我们可以将其直接注入 <code>Startup</code> 中。例如：</p>
+<figure class="highlight cs"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title">Startup</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="keyword">readonly</span> IConfiguration configuration;</span><br><span class="line">    <span class="keyword">readonly</span> IApplicationLifetime lifetime;</span><br><span class="line">    <span class="keyword">readonly</span> ILogger&lt;Startup&gt; logger;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">Startup</span>(<span class="params"></span></span></span><br><span class="line"><span class="function"><span class="params">        IConfiguration configuration, IApplicationLifetime lifetime, ILogger&lt;Startup&gt; logger</span>)</span></span><br><span class="line"><span class="function"></span>    &#123;</span><br><span class="line">        <span class="keyword">this</span>.configuration = configuration;</span><br><span class="line">        <span class="keyword">this</span>.lifetime = lifetime;</span><br><span class="line">        <span class="keyword">this</span>.logger = logger;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">ConfigureServices</span>(<span class="params">IServiceCollection services</span>)</span></span><br><span class="line"><span class="function"></span>    &#123;</span><br><span class="line">        <span class="comment">// Add application related services to service collection.</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">Configure</span>(<span class="params">IApplicationBuilder app, IHostingEnvironment env</span>)</span></span><br><span class="line"><span class="function"></span>    &#123;</span><br><span class="line">        <span class="comment">// Create application pipeline.</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>那么问题就来了。</p>
+<ul>
+<li>在 <code>Startup</code> 中注入的 <code>configuration</code>、<code>lifetime</code>、<code>logger</code> 这些服务是由哪一个 <code>IServiceProvider</code> 创建出来的呢？</li>
+<li>如果在 <code>Startup</code> 创建时 <code>IServiceProvider</code> 已然创建，那么 <code>Startup.ConfigureServices</code> 在向哪个 <code>IServiceCollection</code> 实例添加类型呢？</li>
+<li>应用程序运行期间的 <code>IServiceProvider</code> 是在 <code>Startup</code> 创建之前就创建好的那个呢、还是由 <code>Startup</code> 配置的 <code>IServiceCollection</code> 实例创建的那个呢？</li>
+</ul>
+<h2 id="3-两阶段-ServiceProvider-创建"><a href="#3-两阶段-ServiceProvider-创建" class="headerlink" title="3 两阶段 ServiceProvider 创建"></a>3 两阶段 ServiceProvider 创建</h2><p>既然 <code>Startup</code> 中已经有一个 <code>IServiceProvider</code> 来给相应的类型进行依赖注入，而平时的应用程序中的依赖注入又能够包含 <code>Startup.ConfigureServices</code> 中的类型定义，那么说明在整个初始化过程中先后创建了两个 <code>IServiceProvider</code> 对象。</p>
+<p>即 ASP.NET Core 的初始化包含了两个步骤：</p>
+<ul>
+<li>第一个步骤是 Hosting 相关服务的初始化过程，初始化完毕之后创建了第一个 <code>IServiceProvider</code> 对象；</li>
+<li>第二步是 Application 相关服务的初始化过程。而 Application 的初始化过程可以注入 Hosting 相关的服务。之后，通过 <code>IStartup.ConfigureServices</code> 方法创建了第二个 <code>IServiceProvider</code> 对象。</li>
+</ul>
+<blockquote>
+<p><strong>如果你对源代码感兴趣</strong></p>
+<p>请参考 <code>WebHostBuilder</code> 类的 <code>Build</code> 方法（<a href="https://github.com/aspnet/AspNetCore/blob/master/src/Hosting/Hosting/src/WebHostBuilder.cs" target="_blank" rel="noopener">源代码在这里</a>）。大致的过程如下：</p>
+<ul>
+<li><code>BuildCommonServices</code> 方法将所有 Hosting 所需的服务（<code>WebHost</code> 相关类型以及所有 <code>IWebHostBuilder</code> 调用中添加的服务类型）添加到 <code>IServiceCollection</code> 对象中。</li>
+<li>使用该 <code>IServiceCollection</code> 创建 Hosting 相关的 <code>IServiceProvider</code>，不妨称之为 <code>hostingServiceProvider</code>。</li>
+<li>使用该 <code>hostingServiceProvider</code> 创建 <code>IStartup</code> 对象（这里有和环境相关的 Convension，详情请参见上一篇）。</li>
+<li>使用一个复制的 <code>IServiceCollection</code> 对象调用 <code>IStartup.ConfigureServices</code> 方法创建另外一个 <code>IServiceProvider</code> 不妨称之为 <code>applicationServiceProvider</code>。</li>
+</ul>
+</blockquote>
+<p>在了解了上述过程之后，那么我们需要注意些什么呢？</p>
+<p>首先我们已经了解，<code>Startup</code> 可以使用 Hosting 的 <code>IServiceProvider</code> 进行注入。但是 <code>IServiceProvider</code> 是一个顶级的 Provider，如果我们在 <code>Startup</code> 中创建了一个非常消耗资源的对象（实现了 <code>IDisposable</code>），则在默认情况下该对象只有在应用程序彻底退出的时候才会销毁。若显式 <code>Dispose</code> 该对象的话且该对象不是 <code>Transient</code> Scope。则有可能导致 Defect。</p>
+<h2 id="4-规避初始化过程中的资源泄露"><a href="#4-规避初始化过程中的资源泄露" class="headerlink" title="4 规避初始化过程中的资源泄露"></a>4 规避初始化过程中的资源泄露</h2><p>但是如果我真的需要在初始化的时候注入非常消耗资源的对象，而我又希望规避资源的泄露，我该怎么办呢？其实还是有办法的。那就是不使用 <code>Startup</code> 的构造函数进行注入而是直接在 <code>Configure</code> 方法中通过参数进行注入。</p>
+<p>为什么这种方式可以规避资源泄露呢？因为这种注入机智并非典型的依赖注入机制，而是 ASP.NET Core 特意实现的。如果应用程序在初始化时使用的 <code>UseStartup&lt;TStartup&gt;()</code> 中的 <code>TStartup</code> 并没有实现 <code>IStartup</code> 的话，ASP.NET Core 就会使用基于约定的 <code>IStartup</code> 实现对 <code>TStartup</code> 进行包装。在包装过程中，它会尝试找到 <code>TStartup</code> 类型中的 <code>Configure</code> 方法，检查参数表中的参数，并使用 <code>IStartup.ConfigureServices</code> 创建的 <code>IServiceProvider</code> 进行注入。但是这里的 <code>IServiceProvider</code> 却并不初始化过程中的顶级 Provider。而是在将整个方法调用包裹在了 <code>Scope</code> 里。因此即使在初始化过程中创建非常消耗资源的实例也会随着方法调用结束后 <code>Scope</code> 的 <code>Dispose</code> 而销毁。具体代码请参见：<a href="https://github.com/aspnet/AspNetCore/blob/master/src/Hosting/Hosting/src/Internal/ConfigureBuilder.cs" target="_blank" rel="noopener">ConfigureBuilder 源代码</a></p>
+<h2 id="5-总结"><a href="#5-总结" class="headerlink" title="5 总结"></a>5 总结</h2><p>请飞到文章开头的第 0 节 :-D。</p>
+<p>如果您觉得本文对您有帮助，也欢迎分享给其他的人。我们一起进步。欢迎关注我的微信公众号：</p>
+<p><img src="/images/blog/funny_csharp_barcode.jpeg" style="text-align:center" alt="wechat-app-barcode"></p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/aspnetcore/">aspnetcore</a><a href="/tags/dependency-injection/">dependency injection</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

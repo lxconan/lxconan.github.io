@@ -1,0 +1,207 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="1pssZD9D7q">
+  
+  <title>ASP.NET Core 沉思录 - Logging 的两种介入方法 | The CLR Daily | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="ASP.NET Core 中依赖注入是一个很重要的环节。因为几乎所有的对象都是由它创建的（相关文章请参见《ASP.NET Core 沉思录 - ServiceProvider 的二度出生》）。因此整个日志记录的相关类型也被直接添加到了 IServiceCollection 中。今天我们将介绍各个接口/类型之间的关系，并找到介入日志记录功能的两个主要的入口。">
+  
+
+  
+  
+  <meta name="keywords" content="aspnetcore,dependency injection,logging">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="ASP.NET Core 沉思录 - Logging 的两种介入方法">
+
+  <meta property="og:site_name" content="The CLR Daily">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The CLR Daily" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The CLR Daily</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>ASP.NET Core 沉思录 - Logging 的两种介入方法</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2019/03/19/coremvc-logging-structure/" rel="bookmark">
+        <time class="entry-date published" datetime="2019-03-19T12:00:33.000Z">
+          2019-03-19
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>ASP.NET Core 中依赖注入是一个很重要的环节。因为几乎所有的对象都是由它创建的（相关文章请参见《ASP.NET Core 沉思录 - ServiceProvider 的二度出生》）。因此整个日志记录的相关类型也被直接添加到了 <code>IServiceCollection</code> 中。今天我们将介绍各个接口/类型之间的关系，并找到介入日志记录功能的两个主要的入口。</p>
+<p><img src="/images/blog/coremvc-logger.jpg" style="text-align:center" alt="wechat-app-barcode"></p>
+<a id="more"></a>
+<h2 id="ASP-NET-Core-的日志功能结构"><a href="#ASP-NET-Core-的日志功能结构" class="headerlink" title="ASP.NET Core 的日志功能结构"></a>ASP.NET Core 的日志功能结构</h2><p>为什么当我们恰当对日志进行配置之后就可以记录日志呢。那是因为 Framework 一定已经将最关键的类型添加到了 <code>IServiceCollection</code> 中。在 ASP.NET Core 中，应用程序的启动一定会创建 <code>WebHost</code> 而创建 <code>WebHost</code> 一般会用到 <code>WebHostBuilder</code>。在 <code>WebHostBuilder</code> 创建过程中就将一些核心的日志记录相关类型添加到了 <code>IServiceCollection</code> 中。</p>
+<p>前面我们介绍过，<code>IServiceProvider</code> 有两次创建过程，一次是在调用 <code>WebHostBuilder.Build</code> 时创建的 Hosting 相关的 <code>IServiceProvider</code>，另一次是在 <code>WebHost.StartXxx</code> 方法时创建的应用程序使用的 <code>IServiceProvider</code>。而日志相关类型第一次的 <code>IServiceProvider</code> 创建之前就已经添加到 <code>IServiceCollection</code> 中了。</p>
+<p>在本文写作时，第一次 <code>IServiceCollection</code> 实例的创建是在 <code>WebHostBuilder.BuildCommonServices</code> 方法中，大概的流程是：</p>
+<ul>
+<li>创建 <code>ServiceCollection</code></li>
+<li>调用 <code>AddLogging</code> 扩展方法</li>
+<li>将 <code>IOptions&lt;&gt;</code> 及其它形式、<code>ILoggerFactory</code>、<code>ILogger&lt;&gt;</code>、<code>IConfigurator</code>、<code>IConfigureOptions&lt;LoggerFilterOptions&gt;</code> 添加到 <code>ServiceCollection</code> 中。</li>
+<li>如果在配置 <code>IWebHostBuilder</code> 过程中调用过 <code>ConfigureLogging</code> 则调用相关委托添加或替换相关日志记录的类型。</li>
+</ul>
+<p>代码请参见：<a href="https://github.com/aspnet/AspNetCore/blob/master/src/Hosting/Hosting/src/WebHostBuilder.cs" target="_blank" rel="noopener">WebHostBuilder.cs</a> 以及 <a href="https://github.com/aspnet/Extensions/blob/master/src/Logging/Logging/src/LoggingServiceCollectionExtensions.cs" target="_blank" rel="noopener">LoggingServiceCollectionExtensions.cs</a>。</p>
+<p>因此，以上提到的类型就是日志功能的核心类型了。梳理一下这些类型的依赖关系就可以弄清 ASP.NET Core 的日志功能结构了。</p>
+<p>弄清一个结构需要关注两个部分的内容，第一个部分是声明上的依赖关系（静态），另一个部分是调用上的依赖关系（动态）。因此我们也会采用这种方式进行梳理。首先声明上的依赖关系如下：</p>
+<p><img src="/images/blog/core-mvc-logger-struct.png" style="text-align:center" alt="logger structure"></p>
+<p>以上结构在运行时会创建三层 <code>ILogger</code> 实现</p>
+<ul>
+<li>最外面的一层就是我们使用的 <code>ILogger&lt;&gt;</code> 实现。它是由 <code>IServiceProvider</code> 直接创建的。</li>
+<li>第二层是 <code>LoggerFactory</code> 创建的 <code>Logger</code>，它是一个组合 Logger。</li>
+<li>第三层是由 <code>ILoggerProvider</code> 实现创建的负责具体记录日志的 <code>ILogger</code> 实现。这些 Logger 都会添加到第二层的组合 <code>Logger</code> 中。</li>
+</ul>
+<p>而后，在日志记录时，正是按照这三层结构进行任务分发的。</p>
+<h2 id="介入日志功能的几个入口"><a href="#介入日志功能的几个入口" class="headerlink" title="介入日志功能的几个入口"></a>介入日志功能的几个入口</h2><p>在了解上述结构之后不难使用我们的具体实现替换默认的 .NET 日志记录结构。首先在使用上 ASP.NET Core 上使用的日志记录接口有两种，第一种即 <code>ILoggerFactory</code>，进而创建 <code>ILogger</code>。例如 <a href="https://github.com/aspnet/AspNetCore/blob/master/src/Http/Routing/src/RouterMiddleware.cs" target="_blank" rel="noopener">这里</a>。而另外一种则是直接使用 <code>ILogger&lt;&gt;</code>。因此我们的介入点有两个：</p>
+<ul>
+<li>直接替换 <code>ILoggerFactory</code> 的实现，这样可以完全定义自己的 Logger -&gt; Sink 结构和过滤逻辑；但工作量较大。</li>
+<li>实现 <code>ILoggerProvider</code>，并将其添加到 <code>IServiceCollection</code> 中。这样可以复用现有的日志逻辑。</li>
+</ul>
+<p>很多第三方日志库就是有选择的采用了上述一种或者两种方式。例如，以 Serilog 为例，它支持上述两种接口：</p>
+<p>首先、我们可以使用 <code>webHostBuilder.UseSerilog(...)</code> 的方式将其纳入应用程序中。而这种方式使用第一种介入方法。具体代码请看 <a href="https://github.com/serilog/serilog-aspnetcore/blob/dev/src/Serilog.AspNetCore/SerilogWebHostBuilderExtensions.cs" target="_blank" rel="noopener">这里</a>。</p>
+<p>其次、我们可以使用 <code>loggerBuilder.AddSerilog(...)</code> 的方式将其纳入应用程序中。而这种方式使用第二种介入方法。具体代码请看 <a href="https://github.com/serilog/serilog-extensions-logging/blob/dev/src/Serilog.Extensions.Logging/SerilogLoggingBuilderExtensions.cs" target="_blank" rel="noopener">这里</a>。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>日志记录有很多可以思考的地方，今天我们只关注 ASP.NET Core 中日志介入的入口。总结起来有两个主要入口：</p>
+<ul>
+<li>第一、直接替换 <code>ILoggerFactory</code> 实现；</li>
+<li>第二、实现具体的 <code>ILoggerProvider</code> 并将其添加到 <code>IServiceCollection</code> 中。</li>
+</ul>
+<p>如果您觉得本文对您有帮助，也欢迎分享给其他的人。我们一起进步。欢迎关注我的微信公众号：</p>
+<p><img src="/images/blog/funny_csharp_barcode.jpeg" style="text-align:center" alt="wechat-app-barcode"></p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/aspnetcore/">aspnetcore</a><a href="/tags/dependency-injection/">dependency injection</a><a href="/tags/logging/">logging</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

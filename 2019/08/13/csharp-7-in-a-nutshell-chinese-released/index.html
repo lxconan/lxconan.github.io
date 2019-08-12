@@ -1,0 +1,190 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.8.0">
+  <meta charset="utf-8">
+  <meta name="baidu-site-verification" content="1pssZD9D7q">
+  
+  <title>C# 7 核心技术指南（中文版）发布了 | The CLR Daily | A world for dotnet and beyond</title>
+
+  
+  <meta name="author" content="Liu Xia">
+  
+
+  
+  <meta name="description" content="大家好，经过我近两年的翻译，《C# 7.0 核心技术指南》终于和大家见面了。同时造成了 Daily 严重的拖更给大家道歉。作为一本第七次再版的图书，此次翻译对书中的字句进行了重新整理。期间和图书的原作者 Joe Albahari 确定了原书中 13 处问题并在中文版中全部予以修正。同时华章图书的编辑">
+  
+
+  
+  
+  <meta name="keywords" content="csharp,book">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="C# 7 核心技术指南（中文版）发布了">
+
+  <meta property="og:site_name" content="The CLR Daily">
+
+  
+  <meta property="og:image" content="/favicon.ico">
+  
+
+  <link href="/favicon.ico" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="The CLR Daily" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">The CLR Daily</a>
+    </h1>
+    <p class="site-description">A world for dotnet and beyond</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>C# 7 核心技术指南（中文版）发布了</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2019/08/13/csharp-7-in-a-nutshell-chinese-released/" rel="bookmark">
+        <time class="entry-date published" datetime="2019-08-12T23:04:27.000Z">
+          2019-08-13
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p><img src="/images/blog/csharp-in-nutshell-cover.jpg" style="text-align:center" alt="Book Cover"></p>
+<p>大家好，经过我近两年的翻译，《C# 7.0 核心技术指南》终于和大家见面了。同时造成了 Daily 严重的拖更给大家道歉。作为一本第七次再版的图书，此次翻译对书中的字句进行了重新整理。期间和图书的原作者 Joe Albahari 确定了原书中 13 处问题并在中文版中全部予以修正。同时华章图书的编辑和社外编辑也进行了多轮次的校对和修正。力求为大家奉献一本读起来 “舒服” 的 C# 和 dotnet 图书。</p>
+<p>C# 这门语言自 2002 年发布以来已经走过了 18 个年头。如果说这门语言在世纪之初十六年间都在慢跑的话那么这三年则是突飞猛进了。这种蓬勃的发展主要体现在三个层面上。第一，从语言本身的特性上，2017 到 2019 年这三年间语言的版本从 6.0 升级到了 8.0 preview，中间包含着五次正式的版本发布；第二，C# 和 .NET 有着紧密的关系。从平台上微软对 CLR 的开放态度前所未有，dotnet core 的发布真正的让它的跨平台能力不再停留在理论层面上，而其中的持续改进——不论是底层虚拟机层面上的改进还是在上层 Framework 的改进上——让它在各个技术雷达上逐步被主流的技术团队锁定；第三，各个云平台对 dotnet core 的支持不断完善。而 Azure 更是基于其上提供了各种个性化的服务。因此，不论从语言、平台、还是云服务，C# 和 dotnet 都展现了强劲的发展势头。</p>
+<p><img src="/images/blog/2017-03-radar-sm.jpg" style="text-align:center" alt="Tech Radar 2017-03"></p>
+<p><img src="/images/blog/2017-11-radar-sm.jpg" style="text-align:center" alt="Tech Radar 2017-11"></p>
+<p><img src="/images/blog/2018-05-radar-sm.jpg" style="text-align:center" alt="2018-05"></p>
+<p><em>图：2017-2018 年一年半之内 .net core 在 ThoughtWorks 技术雷达上惊艳的三连跳</em></p>
+<blockquote>
+<p>我们团队认为 <strong>.NET CORE</strong> 已经足够成熟，可以成为 <strong>.NET</strong> 服务器应用程序的默认平台。开源的 <strong>.NET Core</strong> 框架支持在 Windows、MacOS 和 Linux 操作系统上使用一流的跨平台工具来开发和部署 <strong>.NET</strong> 应用程序。微软提供了好用的 Docker 镜像，使得在容器化环境中部署 <strong>.NET Core</strong> 应用程序变得非常简单。其在社区中积极的发展方向和我们项目的反馈表明 —— <strong>.NET Core</strong> 是 <strong>.NET</strong> 应用开发的未来。</p>
+<p>– ThoughtWorks 技术雷达第 18 期</p>
+</blockquote>
+<p>因此现在是入手 C# 和 dotnet 的绝佳时机。</p>
+<p>但是从另一个方面。C# 毕竟是一门积累了 18 年的语言，最近的快速增长更极大的加重了学习的负担。虽然一些工具如 Microsoft IntelliSense 和在线文档可以为工作提供诸多便利，但若要使用它们仍需要一些现有的概念和知识体系作为支撑。本书以简明统一的方式（而非繁琐冗长的介绍）准确的阐释了这些知识。</p>
+<ul>
+<li>首先本书注重知识脉络，并适时地使用图表将联系可视化。</li>
+<li>其次，它在其中引入了非常多的拥有非常强的实践意义的范例代码并对其进行详细的解释。书中的所有代码范例都可以直接在 LINQPad 中执行，省去了创建工程之苦。可以随时随地，马上书写，马上验证。这种 baby step 的解说方式非常适合自学。</li>
+<li>第三，它内容涵盖 C# 语言，CLR 和 Framework 核心程序集。并特意的为一些难以理解的主题，例如并发性、安全性以及应用程序域留出了足够的篇幅。</li>
+</ul>
+<p>因此它是一本既照顾知识面又兼顾深度的好书。</p>
+<p>在 <strong>机械工业出版社</strong> 和微软最有价值专家 <strong>张善友</strong> 的支持下我们在 <strong>dotnet 跨平台</strong> 和 <strong>每日 CLR 段子</strong> 公众号推出限时团购优惠活动。大家也可以扫描下方的二维码享受 6.5 折的优惠价格：</p>
+<p><img src="/images/blog/tuangou-book-barcode.png" style="text-align:center" alt="Promote"></p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/csharp/">csharp</a><a href="/tags/book/">book</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+  
+	<section id="comment" class="comment">
+	  <div id="disqus_thread">
+	  <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+	  </div>
+	</section>
+
+	<script type="text/javascript">
+	var disqus_shortname = 'lxconanblog';
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	(function(){
+	  var dsq = document.createElement('script');
+	  dsq.type = 'text/javascript';
+	  dsq.async = true;
+	  dsq.src = '//' + disqus_shortname + '.disqus.com/count.js';
+	  (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+	}());
+	</script>
+
+
+
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    <br>
+    
+    &copy; 2019 Liu Xia
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-47369838-1', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>
